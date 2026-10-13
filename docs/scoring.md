@@ -462,6 +462,29 @@ without any live call. Factors read from analyses (slope, weather) use
 `Analysis.lookup()`, which returns a fresh cached answer or nothing and never computes;
 on a miss the factor is `not_available`. The campsite detail endpoint scores this way.
 
+### Stored factor results (TM05-86)
+
+The map's campsite layer scores every feature it returns, which from scratch cost 17 s for
+the 563 Adirondack campsites: ~36 ms of each site's ~43 ms is the water factor's nearest
+searches. So the factors that read only the ingested vector tables (water, trail access,
+legal status, land cover) are evaluated stored-only when `enrich_campsites` runs, and kept
+in `CampsiteFacts.factor_results` (`scoring/stored.py`).
+
+A campsite's score is then `score_campsite(..., stored_only=True, evaluated=<stored>)`:
+the stored results plus slope and weather read from the analysis cache, combined with the
+weights exactly as above. The detail panel and the map layer both score this way, so they
+cannot disagree, and every factor still appears in the breakdown with its measurement and
+explanation.
+
+- **Slope and weather are never stored** there. Their answers already live in the analysis
+  cache with their own TTL and provenance; weather expires within the hour.
+- **Weights are not part of what is stored.** `factor_digest` covers the model version and
+  the factor settings only, so a different weighting re-combines the same results.
+- **Stale results recompute themselves.** A digest that does not match the current config
+  (or a row enriched before TM05-86) is recomputed stored-only on first use and written
+  back. Re-run `enrich_campsites` after a config change, or after re-ingesting vector data,
+  so no request pays for it.
+
 ### Adding a factor
 
 1. Write a `Factor` subclass in `factors.py` (or its own module) with `key`, `label` and

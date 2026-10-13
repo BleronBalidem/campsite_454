@@ -52,6 +52,12 @@ so an enriched campsite never waits on 3DEP when scored.
 one cache key. Before that, scoring missed every entry enrichment had written and called
 3DEP for each site; a regression test now covers it.
 
+It also stores the site's vector-data factor results (water, trail access, legal status,
+land cover) in `factor_results`, so a score is a cheap combine and the map can score every
+campsite it shows (TM05-86, docs/scoring.md, "Stored factor results"). That adds roughly
+40 ms per site: a warm Adirondack re-run took 32.0 s (terrain 0.1 s) on 2026-10-13, on a
+different machine from the 10.4 s below.
+
 ### Batching
 
 `Analysis.run_many()` does one cache lookup for all sites and calls `compute_many()` for

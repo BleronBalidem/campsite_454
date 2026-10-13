@@ -195,6 +195,20 @@ not name the feature — very common for trails, where roughly 40% of OSM ways a
 | `site_type` | string | `designated`, `primitive`, `lean_to`, `group`, `unknown` |
 | `reservable` | bool \| null | `null` means the source does not say — not "no" |
 | `capacity` | int \| null | Maximum people, when published |
+| `score` | int \| null | 0–100, the same score the campsite detail panel shows (TM05-86). `null` when not scored — never 0 |
+| `score_status` | string | `scored`, `pending` (not enriched yet), or `not_available` (enriched, but no weighted factor could be evaluated) |
+
+The score is the campsite detail endpoint's, computed by the same code from stored values
+only, so the map and the panel never disagree. No request calls 3DEP or Open-Meteo:
+
+- Water, trail access, legal status and land cover are the results `enrich_campsites`
+  stores with each site's facts (docs/scoring.md, "Stored factor results").
+- Slope and weather are read from the analysis cache, as on the panel; a miss is
+  `not_available` and the weights renormalise.
+
+Only the features the cap keeps are scored, so the cap, the deterministic sample and the
+truncation metadata are exactly as before. The other three layers have no score.
+Check `score` for `null` before colouring on it: `null` is "no score", not a low one.
 
 **Trails**
 
@@ -332,6 +346,22 @@ treat them as an upper bound rather than production numbers.
 | Full park | trails | 0.001 | 69 ms | 437 kB | 2,000 / 26,005 ⚠ |
 | Medium, combined | all three | 0.0005 | 217 ms | 359 kB | — |
 
+**Campsite scores (TM05-86).** Measured on the restored dev snapshot (563 enriched
+Adirondack campsites) through the Django test client, local PostGIS 16 on WSL2, best and
+median of 5 warm runs. Script and raw output: `artifacts/tm05-86/`.
+
+| Viewport | Before (no score) | Scored per request | Stored factor results (shipped) |
+|---|---|---|---|
+| Adirondack Park (regions.yml), 563 sites | 8 ms, 1 query | 17,141 ms, 3,943 queries | **1,256 ms** (median 1,706), 1,128 queries |
+| High Peaks, 33 km, 52 sites | 3 ms, 1 query | 762 ms, 366 queries | **119 ms** (median 146), 106 queries |
+
+Scoring each site from scratch spends ~36 ms of its ~43 ms in the water factor's nearest
+searches, which is why those results are stored. What remains is two analysis-cache
+lookups per site (slope, weather); batching them is the next step if the zoomed-out map
+needs to be faster. The first request after the factor settings change recomputes the
+stored results it touches (about 17 s for the whole park), unless `enrich_campsites` has
+been re-run first.
+
 The headline: **`simplify` is worth more than anything else you can do.** It cuts the
 medium-zoom water response by 12× for no visible difference at that scale.
 
@@ -370,13 +400,15 @@ index.
 An unknown id returns 404.
 
 The endpoint serves the facts derived by `enrich_campsites` (docs/enrichment.md) and the
-campsite's score (TM05-45). The map layers are unaffected.
+campsite's score (TM05-45), the same score the map's campsite features carry (TM05-86).
 - **Unknown facts are `null`,** never placeholder text, so the UI can hide them.
 - **`facts` is `null`** for a campsite that hasn't been enriched yet; today that's
   everything outside the Adirondacks.
 - **The score uses stored values only.** This request never calls 3DEP or Open-Meteo.
-  Water, trail and legal status come from the ingested vector tables. Slope and weather
-  come from the analysis cache that `enrich_campsites` and other requests fill. An input
+  Water, trail access, legal status and land cover are the factor results
+  `enrich_campsites` stores with the facts (TM05-86); the map's campsite layer combines
+  the same ones, so the two always show the same score. Slope and weather come from the
+  analysis cache that `enrich_campsites` and other requests fill. An input
   that is not stored is reported as `not_available`; it is not fetched, and it is never
   scored as 0.
 
