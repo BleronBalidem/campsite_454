@@ -6,9 +6,12 @@ combined endpoint for the initial load so the first paint is a single round trip
 combined view delegates to the same code, so the two can never drift apart.
 """
 
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from accounts.authentication import OptionalTokenAuthentication
+from accounts.weights import config_for
 from api.bbox import InvalidBbox, parse_bbox
 from api.layers import LAYERS, MAX_LIMIT, MAX_SIMPLIFY, collect, envelope, limit_for_bbox
 
@@ -84,6 +87,8 @@ def _bad_request(exc) -> Response:
 
 
 @api_view(["GET"])
+@authentication_classes([OptionalTokenAuthentication])
+@permission_classes([AllowAny])
 def layer_view(request, layer: str):
     """One layer as a GeoJSON FeatureCollection."""
     try:
@@ -91,10 +96,13 @@ def layer_view(request, layer: str):
     except (InvalidBbox, InvalidParameter) as exc:
         return _bad_request(exc)
 
-    return Response(collect(LAYERS[layer], bbox, limit=limit, simplify=simplify))
+    scoring = config_for(request.user)
+    return Response(collect(LAYERS[layer], bbox, limit=limit, simplify=simplify, scoring=scoring))
 
 
 @api_view(["GET"])
+@authentication_classes([OptionalTokenAuthentication])
+@permission_classes([AllowAny])
 def map_data_view(request):
     """Every layer at once, for the initial map load.
 
@@ -112,9 +120,17 @@ def map_data_view(request):
     # area-derived cap resolved once so every layer reports the same number.
     bounds = envelope(bbox)
     effective_limit = limit if limit is not None else limit_for_bbox(bbox)
+    scoring = config_for(request.user)
 
     layers = {
-        name: collect(LAYERS[name], bbox, limit=effective_limit, simplify=simplify, bounds=bounds)
+        name: collect(
+            LAYERS[name],
+            bbox,
+            limit=effective_limit,
+            simplify=simplify,
+            bounds=bounds,
+            scoring=scoring,
+        )
         for name in requested
     }
     return Response(

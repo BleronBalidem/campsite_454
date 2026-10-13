@@ -5,7 +5,9 @@ MapLibre as a source — no reshaping needed.
 
 The server runs at `http://localhost:8000` by default (`python manage.py runserver` from
 `backend/`). All endpoints are GET, need no authentication, and CORS is already open to
-the Vite dev server on port 5173.
+the Vite dev server on port 5173. Endpoints that return scores also accept an optional
+`Authorization: Token <token>`: signed in, campsites are scored with that user's own
+weights ([Scoring weights](#scoring-weights-tm05-46)).
 
 ---
 
@@ -21,6 +23,7 @@ the Vite dev server on port 5173.
 | `GET /api/campsites/<id>/detail/` | One campsite with its derived facts — see [Campsite detail](#campsite-detail-tm05-64) |
 | `GET /api/routes/` | Named hiking routes in a bbox — see [Named routes](#named-routes-tm05-60) |
 | `GET /api/routes/<osm_id>/` | One route: stats, elevation profile, campsites along it with scores |
+| `GET`/`PUT`/`DELETE /api/auth/me/weights/` | The signed-in user's factor weights — see [Scoring weights](#scoring-weights-tm05-46) |
 
 There is one endpoint per layer so you can fetch only what the user has toggled on, and a
 combined one so the first paint is a single round trip. They share the same code, so the
@@ -1029,8 +1032,65 @@ no trails yet as disabled.
 - **Opening.** A card opens the map with that trail's panel, which fits the view to the
   trail.
 
+## Scoring weights (TM05-46)
+
+A signed-in user can set how much each factor counts. Scores then use those weights
+wherever that user's token is sent: the campsite detail, the campsite map features
+(`/api/campsites/`, `/api/map-data/`) and the campsites along a route
+(`/api/routes/<osm_id>/`, `/api/trails/<source_id>/trail/`). Signed out, or with no saved
+weights, scores use the defaults in `scoring/config.yml`.
+
+Only the weights are personal. Curves, caps and the legal gate stay the shipped config's,
+so a user changes what matters to them, not what a factor measures. Every score still
+reports each factor's `weight` and `effective_weight` in its breakdown, and its
+`config_digest` changes with the weights, so a personal score is never mistaken for a
+default one.
+
+| Method | Body | Returns |
+|---|---|---|
+| `GET /api/auth/me/weights/` | — | `200`, the caller's weights |
+| `PUT /api/auth/me/weights/` | `{"weights": {"water": 0.5, "slope": 0.2}}` | `200`, the saved weights |
+| `DELETE /api/auth/me/weights/` | — | `204`, back to the defaults |
+
+All three need `Authorization: Token <token>`; without it, `401`. Each acts on the token's
+own user, and there is no user id in the URL, so no request can read or change another
+user's weights.
+
+```json
+{
+  "weights":  {"water": 0.5, "legal": 0.3, "trail": 0.2, "weather": 0.15, "slope": 0.2, "land_cover": 0.05},
+  "defaults": {"water": 0.35, "legal": 0.3, "trail": 0.2, "weather": 0.15, "slope": 0.1, "land_cover": 0.05},
+  "custom": true
+}
+```
+
+- **`weights`** is the complete set the user's scores use. Factors left out of a `PUT` keep
+  the default weight. A later `PUT` replaces the earlier one; it does not merge with it.
+- **`custom`** is `false` when the user has saved nothing, and `weights` then equals
+  `defaults`.
+- Weights are relative and need not sum to 1, exactly as in `config.yml`.
+
+**Validation.** Weights go through the same `scoring.config.parse()` check as `config.yml`,
+plus three more. A rejected `PUT` changes nothing and returns `400` with a reason:
+
+| Problem | `error` contains |
+|---|---|
+| `weights` missing, empty, or not an object | `must be an object of factor to number` |
+| A key that is not a factor | `unknown factor(s): ...`, plus the list of factors |
+| A value that is not a number (strings, `true`, `null`, lists) | `must be a number` |
+| A negative number | `must be a number >= 0` |
+| `NaN` or an infinite number | `must be a finite number`, or a JSON parse error |
+| Every weight zero | `at least one weight must be above 0` |
+
+**Tokens on the public endpoints.** On the scoring endpoints a missing, revoked or
+malformed token is treated as signed out (default weights), not as `401`. A map should not
+stop loading because its token was revoked in another tab.
+
+Stored factor results (TM05-86) do not depend on weights, so personal weights cost nothing
+extra per request.
+
 ## Not included yet
 
-**Scored campsites in the map layers.** The layer endpoints above return raw ingested
-features. Scores are served per campsite by the campsite detail (TM05-45), and the route
-detail carries scores for the campsites along a route.
+**Scores on the trail, water and public-land layers.** Only campsites are scored. Campsite
+features carry `score` and `score_status` (TM05-86, [Properties](#properties)), the same
+score as the campsite detail (TM05-45).

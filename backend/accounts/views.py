@@ -16,10 +16,10 @@ thing that actually revokes access. A client that keeps using the old token gets
 then on, which is what "signed out" has to mean on the server and not just in localStorage.
 
 Account deletion relies on CASCADE alone. Every foreign key to the user cascades: the auth
-token (DRF's Token.user), saved campsites (SavedCampsite.user) and Django's own admin log;
-group and permission memberships are many-to-many rows Django removes with the user. A
-test walks the user model's relations, so a future non-cascading key fails CI rather than
-leaving orphans behind.
+token (DRF's Token.user), saved campsites (SavedCampsite.user), scoring weights
+(ScoringWeights.user) and Django's own admin log; group and permission memberships are
+many-to-many rows Django removes with the user. A test walks the user model's relations,
+so a future non-cascading key fails CI rather than leaving orphans behind.
 """
 
 from django.contrib.auth import authenticate, get_user_model
@@ -37,7 +37,8 @@ from rest_framework.response import Response
 
 from geodata.models import Campsite
 
-from .models import SavedCampsite
+from . import weights as user_weights
+from .models import SavedCampsite, ScoringWeights
 from .serializers import RegisterSerializer, SavedCampsiteSerializer
 
 User = get_user_model()
@@ -110,6 +111,35 @@ def current_user_view(request):
         request.user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     return Response({"username": request.user.username, "email": request.user.email})
+
+
+def _weights_payload(user) -> dict:
+    saved = user_weights.saved(user)
+    defaults = user_weights.defaults()
+    return {"weights": saved or defaults, "defaults": defaults, "custom": saved is not None}
+
+
+@api_view(["GET", "PUT", "DELETE"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def scoring_weights_view(request):
+    """GET, set (PUT) or reset (DELETE) the caller's own factor weights (TM05-46).
+
+    Like /auth/me/ there is no id in the URL: every method acts on request.user, so no
+    request can read or change another user's weights. PUT takes {"weights": {...}};
+    factors left out keep the default weight. DELETE goes back to the defaults; 204.
+    """
+    if request.method == "DELETE":
+        ScoringWeights.objects.filter(user=request.user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    if request.method == "PUT":
+        data = request.data.get("weights") if isinstance(request.data, dict) else None
+        try:
+            weights = user_weights.validate(data)
+        except user_weights.InvalidWeights as error:
+            return Response({"error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        ScoringWeights.objects.update_or_create(user=request.user, defaults={"weights": weights})
+    return Response(_weights_payload(request.user))
 
 
 @api_view(["POST", "DELETE"])

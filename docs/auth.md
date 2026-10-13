@@ -30,6 +30,7 @@ Authorization: Token <token>
 | `/api/auth/logout/` | `POST` | Yes | `204`, token revoked |
 | `/api/auth/me/` | `GET` | Yes | `200` with the token's owner |
 | `/api/auth/me/` | `DELETE` | Yes | `204`, account deleted |
+| `/api/auth/me/weights/` | `GET` / `PUT` / `DELETE` | Yes | The user's own factor weights (TM05-46, docs/api.md) |
 | `/api/saved-campsites/` | `GET` | Yes | `200` with this user's saved campsites |
 | `/api/saved-campsites/<source_id>/` | `POST` | Yes | `201` (or `200` if already saved) |
 | `/api/saved-campsites/<source_id>/` | `DELETE` | Yes | `204` |
@@ -176,7 +177,8 @@ period, and deletion cannot be undone. The client should ask "are you sure?" bef
 calling it, then drop its stored token.
 
 **How the related rows go.** Every foreign key to the user is `on_delete=CASCADE`:
-`authtoken.Token.user`, `accounts.SavedCampsite.user` and Django's admin log. Group and
+`authtoken.Token.user`, `accounts.SavedCampsite.user`, `accounts.ScoringWeights.user`
+(TM05-46) and Django's admin log. Group and
 permission memberships are many-to-many rows Django removes along with the user. So
 `user.delete()` removes it all, with no explicit deletes. `test_every_foreign_key_to_the_user_cascades`
 walks the user model's relations and fails if a future model points at the user without
