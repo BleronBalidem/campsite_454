@@ -151,6 +151,9 @@ def test_campsite_properties_are_the_ones_the_frontend_needs(client):
         "site_type": "lean_to",
         "reservable": True,
         "capacity": 8,
+        # Not enriched, so not scored: null with a status, never 0 (TM05-86).
+        "score": None,
+        "score_status": "pending",
     }
 
 

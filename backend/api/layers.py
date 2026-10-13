@@ -42,6 +42,7 @@ so. The truncation flag carries the same information without failing the request
 """
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -50,6 +51,7 @@ from django.contrib.gis.db.models.functions import AsGeoJSON, Intersection
 from django.contrib.gis.geos import Polygon
 from django.db.models import Func, IntegerField, Value
 
+from api.campsite_detail import stored_scores
 from geodata.models import Campsite, PublicLand, Trail, WaterFeature
 
 
@@ -138,6 +140,10 @@ class Layer:
     exact: bool = False
     #: Serialise only the part of the geometry inside the viewport.
     clip: bool = False
+    #: Computed properties appended after the model fields: primary keys in, a properties
+    #: dict per key out. Called only for the rows the cap kept, so it never changes which
+    #: features the sample returns, and its cost scales with the cap, not the match count.
+    computed: Callable[[list[int]], dict[int, dict]] | None = None
 
     def matching(self, bounds: Polygon):
         """Every row this layer considers inside `bounds`, before the cap.
@@ -158,7 +164,7 @@ class Layer:
                 geojson=AsGeoJSON(geometry, precision=COORDINATE_PRECISION),
                 sample_order=SampleOrder("id"),
             )
-            .values("source_id", "geojson", *self.properties)
+            .values("id", "source_id", "geojson", *self.properties)
             .order_by("sample_order")[:limit]
         )
 
@@ -168,6 +174,8 @@ LAYERS: dict[str, Layer] = {
         name="campsites",
         model=Campsite,
         properties=("name", "site_type", "reservable", "capacity"),
+        # The same stored-only score the detail panel shows (TM05-86).
+        computed=stored_scores,
     ),
     "trails": Layer(
         name="trails",
@@ -240,12 +248,13 @@ def collect(
     truncated = len(rows) >= limit
     matched = layer.matching(bounds).count() if truncated else len(rows)
 
+    computed = layer.computed([row["id"] for row in rows]) if layer.computed and rows else {}
     features = [
         {
             "type": "Feature",
             "id": row["source_id"],
             "geometry": json.loads(row["geojson"]),
-            "properties": {key: row[key] for key in layer.properties},
+            "properties": {key: row[key] for key in layer.properties} | computed.get(row["id"], {}),
         }
         for row in rows
     ]

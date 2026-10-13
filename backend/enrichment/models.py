@@ -56,6 +56,13 @@ class CampsiteFacts(models.Model):
 
     provenance = models.JSONField(default=dict, blank=True)
 
+    # The vector-data factor results of the site's score, stored-only, so scoring a map's
+    # worth of campsites is a combine rather than ~40 ms of searches each (TM05-86,
+    # scoring/stored.py). `factor_digest` names the factor settings they came from; any
+    # other value means they are stale and are recomputed on next use.
+    factor_results = models.JSONField(default=list, blank=True)
+    factor_digest = models.CharField(max_length=16, blank=True)
+
     class Meta:
         verbose_name_plural = "campsite facts"
 

@@ -41,22 +41,36 @@ def build_factors(config: ScoringConfig, stored_only: bool = False):
 
 
 def score_location(
-    lon: float, lat: float, config: ScoringConfig | None = None, stored_only: bool = False
+    lon: float,
+    lat: float,
+    config: ScoringConfig | None = None,
+    stored_only: bool = False,
+    evaluated: dict[str, FactorResult] | None = None,
 ) -> dict:
     """Score the point (lon, lat), WGS84 degrees, from its coordinates alone.
 
     `stored_only` answers from stored values and makes no live call: a factor whose
     analysis (3DEP slope, Open-Meteo weather) is not already cached is not_available
-    rather than fetched."""
+    rather than fetched.
+
+    `evaluated` supplies results already worked out for this point, by factor key
+    (scoring/stored.py, TM05-86); those factors are not evaluated again."""
     if not (-180 <= lon <= 180 and -90 <= lat <= 90):
         raise ScoringError(f"not a valid longitude/latitude: ({lon}, {lat})")
     config = config or load()
-    results = [factor.evaluate(lon, lat) for factor in build_factors(config, stored_only)]
+    evaluated = evaluated or {}
+    results = [
+        evaluated[factor.key] if factor.key in evaluated else factor.evaluate(lon, lat)
+        for factor in build_factors(config, stored_only)
+    ]
     return combine(results, config, lon, lat)
 
 
 def score_campsite(
-    campsite, config: ScoringConfig | None = None, stored_only: bool = False
+    campsite,
+    config: ScoringConfig | None = None,
+    stored_only: bool = False,
+    evaluated: dict[str, FactorResult] | None = None,
 ) -> dict:
     """Score a Campsite by its location. Nothing about the record itself is a factor --
     capacity in particular is not (571 of 660 RIDB sites report the same 8).
@@ -64,7 +78,7 @@ def score_campsite(
     One thing about the record does change the *wording*: a designated site close to a
     trail says that is normal for a designated site (TM05-76 follow-up), since the 150 ft
     rule does not apply to it. The sub-score is unchanged."""
-    result = score_location(campsite.geom.x, campsite.geom.y, config, stored_only)
+    result = score_location(campsite.geom.x, campsite.geom.y, config, stored_only, evaluated)
     if designation(campsite):
         for factor in result["factors"]:
             measurement = factor["measurement"] or {}
