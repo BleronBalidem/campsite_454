@@ -1031,6 +1031,6 @@ no trails yet as disabled.
 
 ## Not included yet
 
-**Scored campsites in the map layers.** The layer endpoints above return raw ingested
-features. Scores are served per campsite by the campsite detail (TM05-45), and the route
-detail carries scores for the campsites along a route.
+**Scores on the trail, water and public-land layers.** Only campsites are scored. Campsite
+features carry `score` and `score_status` (TM05-86, [Properties](#properties)), the same
+score as the campsite detail (TM05-45).
