@@ -16,8 +16,10 @@ from test_api_campsite_score import LAT, LON, Network, campsite, surroundings
 from analysis.analyses import elevation, weather
 from analysis.analyses.weather import WeatherForecast
 from enrichment.facts import enrich
-from geodata.models import Campsite
-from scoring.config import load
+from enrichment.models import CampsiteFacts
+from geodata.models import Campsite, WaterFeature
+from scoring.config import load, parse
+from scoring.stored import factors_digest
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
 
@@ -182,3 +184,59 @@ def test_other_layers_have_no_score_properties(network):
         for feature in layer["features"]:
             assert "score" not in feature["properties"]
             assert "score_status" not in feature["properties"]
+
+
+def test_enrich_stores_the_vector_factor_results():
+    surroundings()
+    facts = enrich(campsite())
+
+    assert {entry["key"] for entry in facts.factor_results} == set(load().weights) - {
+        "slope",
+        "weather",
+    }
+    assert facts.factor_digest == factors_digest()
+
+
+def test_map_and_panel_score_from_the_stored_results(network):
+    """Removing the water after enrichment changes nothing: the request combines what was
+    stored rather than searching again."""
+    surroundings()
+    scored_site()
+    network.open = False
+    before = by_id(campsite_features())["node/1"]["score"]
+
+    WaterFeature.objects.all().delete()
+
+    assert by_id(campsite_features())["node/1"]["score"] == before
+    assert detail("node/1")["score"] == before
+    water = next(f for f in detail("node/1")["score_breakdown"]["factors"] if f["key"] == "water")
+    assert water["status"] == "scored"
+
+
+def test_stale_results_are_recomputed_once_and_written_back(network):
+    surroundings()
+    scored_site()
+    CampsiteFacts.objects.update(factor_results=[], factor_digest="stale")
+    network.open = False
+
+    properties = by_id(campsite_features())["node/1"]
+
+    assert properties["score_status"] == "scored"
+    facts = CampsiteFacts.objects.get()
+    assert facts.factor_digest == factors_digest()
+    assert {entry["key"] for entry in facts.factor_results} >= {"water", "trail", "legal"}
+    assert detail("node/1")["score"] == properties["score"]
+    assert network.calls == []
+
+
+def test_a_weight_change_reuses_the_stored_results():
+    config = load()
+    reweighted = parse(
+        {
+            "model_version": config.model_version,
+            "weights": {**config.weights, "water": config.weights["water"] * 2},
+            "factors": config.factors,
+        }
+    )
+
+    assert factors_digest(reweighted) == factors_digest(config)

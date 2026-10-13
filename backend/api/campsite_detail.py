@@ -9,9 +9,11 @@ yet.
 
 The score is scored from stored values only: no 3DEP or Open-Meteo call is made on this
 request, so a slope or forecast not already in the analysis cache is not_available rather
-than fetched. A campsite that has not been enriched has no stored inputs and is not scored
-at all (`score_status: "pending"`): its region usually has no vector data either, and
-scoring it would report absent water and land as measured zeros.
+than fetched. The vector-data factors come from the results stored with the site's facts
+(TM05-86, scoring/stored.py), the same ones the map's campsite layer combines. A campsite
+that has not been enriched has no stored inputs and is not scored at all
+(`score_status: "pending"`): its region usually has no vector data either, and scoring it
+would report absent water and land as measured zeros.
 Contract: docs/api.md, "Campsite detail".
 """
 
@@ -19,6 +21,7 @@ from django.http import Http404
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
+from enrichment.facts import stored_factor_results
 from enrichment.models import CampsiteFacts
 from geodata.confidence import confidence_payload
 from geodata.models import Campsite
@@ -73,14 +76,34 @@ def _facts_payload(facts: CampsiteFacts) -> dict:
     }
 
 
+def _facts_of(site: Campsite) -> CampsiteFacts | None:
+    try:
+        return site.facts
+    except CampsiteFacts.DoesNotExist:
+        return None
+
+
 def _score(site: Campsite, facts: CampsiteFacts | None) -> tuple[str, dict | None]:
-    """(score_status, contract-1 result or None)."""
+    """(score_status, contract-1 result or None). The one place a stored score is made:
+    the map's campsite layer scores through it too (TM05-86), so the two never disagree."""
     if facts is None:
         return PENDING, None
     try:
-        return SCORED, score_campsite(site, stored_only=True)
+        return SCORED, score_campsite(
+            site, stored_only=True, evaluated=stored_factor_results(site, facts)
+        )
     except ScoringError:
         return NOT_AVAILABLE, None
+
+
+def stored_scores(ids: list[int]) -> dict[int, dict]:
+    """`score` and `score_status` for each Campsite primary key in `ids`, from stored
+    values only, for the map's campsite features (TM05-86)."""
+    scores = {}
+    for site in Campsite.objects.filter(pk__in=ids).select_related("facts"):
+        status, result = _score(site, _facts_of(site))
+        scores[site.pk] = {"score": result["score"] if result else None, "score_status": status}
+    return scores
 
 
 @api_view(["GET"])
@@ -93,10 +116,7 @@ def campsite_detail_view(request, source_id: str):
     )
     if site is None:
         raise Http404(f"No campsite with source_id {source_id!r}")
-    try:
-        facts = site.facts
-    except CampsiteFacts.DoesNotExist:
-        facts = None
+    facts = _facts_of(site)
 
     source_name = (site.name or "").strip()
     score_status, result = _score(site, facts)

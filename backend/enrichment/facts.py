@@ -17,6 +17,7 @@ from analysis.base import AnalysisError
 from enrichment.models import CampsiteFacts
 from geodata.distance import nearest
 from geodata.models import Campsite, PublicLand, Trail, TrailRoute, WaterFeature
+from scoring.stored import as_results, evaluate_stored, factors_digest
 
 #: Bump when any derivation below changes meaning; stored with every row.
 METHOD_VERSION = "1"
@@ -204,6 +205,8 @@ def enrich(campsite, terrain=None, now=None) -> CampsiteFacts:
             "shelter_kind": kind,
             "display_name": name,
             "display_name_derived": derived,
+            "factor_results": evaluate_stored(campsite),
+            "factor_digest": factors_digest(),
             "provenance": {
                 "method_version": METHOD_VERSION,
                 "terrain": "site_terrain analysis (USGS 3DEP)"
@@ -216,3 +219,19 @@ def enrich(campsite, terrain=None, now=None) -> CampsiteFacts:
         },
     )
     return facts
+
+
+def stored_factor_results(campsite, facts: CampsiteFacts) -> dict:
+    """The site's stored factor results for score_campsite(), keyed by factor (TM05-86).
+
+    Stale ones -- stored under other factor settings, or never stored because the row
+    predates them -- are recomputed stored-only and written back first, so they are always
+    current and only the first use after a config change pays for the searches."""
+    digest = factors_digest()
+    if facts.factor_digest != digest:
+        facts.factor_results = evaluate_stored(campsite)
+        facts.factor_digest = digest
+        CampsiteFacts.objects.filter(pk=facts.pk).update(
+            factor_results=facts.factor_results, factor_digest=digest
+        )
+    return as_results(facts.factor_results)
