@@ -115,6 +115,20 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 
+# TM05-88: login and register are rate-limited per client IP (accounts/throttling.py,
+# docs/auth.md). Only those two views throttle; nothing else is affected.
+REST_FRAMEWORK = {
+    "DEFAULT_THROTTLE_RATES": {
+        "auth-login": os.environ.get("AUTH_LOGIN_RATE", "10/min"),
+        "auth-register": os.environ.get("AUTH_REGISTER_RATE", "10/hour"),
+    },
+    # The client is REMOTE_ADDR alone. DRF's default (None) trusts the whole
+    # X-Forwarded-For header, which a client writes itself: a new value per request would
+    # never be limited. Behind a reverse proxy, set this to the number of proxies.
+    "NUM_PROXIES": int(os.environ.get("THROTTLE_NUM_PROXIES", "0")),
+    "EXCEPTION_HANDLER": "accounts.throttling.exception_handler",
+}
+
 # TM05-103: `make dev-phone` serves the frontend over HTTPS on the LAN so a phone can test
 # geolocation. In development only (DEBUG on), trust that one origin for CORS and CSRF. It
 # is ignored when DEBUG is off, so it can never widen a production deployment.
