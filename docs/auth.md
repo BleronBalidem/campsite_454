@@ -25,8 +25,8 @@ Authorization: Token <token>
 
 | Endpoint | Method | Auth required | Returns |
 |---|---|---|---|
-| `/api/auth/register/` | `POST` | No | `201` with the new account |
-| `/api/auth/login/` | `POST` | No | `200` with a token |
+| `/api/auth/register/` | `POST` | No | `201` with the new account; rate-limited, see [Rate limits](#rate-limits-tm05-88) |
+| `/api/auth/login/` | `POST` | No | `200` with a token; rate-limited, see [Rate limits](#rate-limits-tm05-88) |
 | `/api/auth/logout/` | `POST` | Yes | `204`, token revoked |
 | `/api/auth/me/` | `GET` | Yes | `200` with the token's owner |
 | `/api/auth/me/` | `DELETE` | Yes | `204`, account deleted |
@@ -290,6 +290,50 @@ Authorization: Token 9a4f2c1e8b3d4a6f9c0e1b2d3a4f5c6d7e8f9a0b
 - `204` — unsaved.
 - `404` — no campsite with that id, or it wasn't saved by this user.
 - `401` — missing or invalid token.
+
+---
+
+## Rate limits (TM05-88)
+
+Login and register are rate-limited **per client IP**, to slow password guessing and mass
+sign-ups. Nothing else is limited: the map, the campsite panel, saved campsites, weights
+and every other endpoint behave exactly as before, even while an IP is limited on login.
+
+| Endpoint | Scope | Default limit | Setting (`.env`) |
+|---|---|---|---|
+| `POST /api/auth/login/` | `auth-login` | **10 per minute** | `AUTH_LOGIN_RATE` |
+| `POST /api/auth/register/` | `auth-register` | **10 per hour** | `AUTH_REGISTER_RATE` |
+
+- **Every request counts,** successful or not. A correct password is refused too once the
+  limit is hit, so a guesser cannot tell a hit from a miss by waiting for a 200.
+- **The two limits are separate.** Hitting the login limit does not block registering.
+- **The window slides.** DRF keeps the timestamps of recent requests and allows a new one as
+  soon as the oldest leaves the window, so the limit lifts within one window (a minute for
+  login), not at a fixed time.
+- Normal use is far below either limit: a sign-up, a login and a few mistyped passwords.
+
+Over the limit is `429 Too Many Requests` with a `Retry-After` header (seconds) and:
+
+```json
+{ "error": "Too many login attempts from this address. Try again in 42 seconds.", "retry_after_s": 42 }
+```
+
+Register's message is "Too many accounts created from this address." Show the `error` text
+as it is; `retry_after_s` is there to disable the button until it is safe to retry.
+
+**How it works.** DRF's `ScopedRateThrottle`, on these two views only
+(`accounts/throttling.py`). The rates live in `settings.REST_FRAMEWORK
+["DEFAULT_THROTTLE_RATES"]` and accept any DRF rate (`20/min`, `100/day`).
+
+- **The client is identified by `REMOTE_ADDR`.** `X-Forwarded-For` is ignored by default,
+  because a client writes that header itself and could send a new value with every
+  request. Behind a reverse proxy, every request arrives from the proxy's address, so set
+  `THROTTLE_NUM_PROXIES` to the number of proxies in front of Django; DRF then reads the
+  real client from the right position in `X-Forwarded-For`.
+- **Counts are kept in Django's cache.** No cache is configured, so that is the default
+  per-process memory cache. With several server processes each keeps its own count, so the
+  effective limit is the limit times the number of processes. A shared cache (Redis,
+  database) is the fix if that ever matters; counts also reset when the server restarts.
 
 ---
 
