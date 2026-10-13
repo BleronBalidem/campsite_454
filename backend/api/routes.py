@@ -22,6 +22,8 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from accounts.authentication import OptionalTokenAuthentication
+from accounts.weights import config_for
 from analysis.analyses.elevation import RouteProfile, stitch
 from analysis.base import AnalysisError
 from api.bbox import InvalidBbox, parse_bbox
@@ -37,6 +39,7 @@ from geodata.models import Campsite, Trail, TrailRoute
 from geodata.route_rating import config as route_config
 from geodata.route_rating import difficulty, position_along, route_type
 from planning.queries import as_gpx, waypoints_near
+from scoring.config import ScoringConfig
 from scoring.config import load as load_scoring_config
 from scoring.engine import score_campsite
 from scoring.verdict import legality_verdict
@@ -160,6 +163,8 @@ def display_name(site: Campsite) -> dict:
 
 
 @api_view(["GET"])
+@authentication_classes([OptionalTokenAuthentication])
+@permission_classes([AllowAny])
 def route_detail_view(request, osm_id: int):
     """One route: properties, stitched line, elevation profile, campsites along it."""
     try:
@@ -168,12 +173,14 @@ def route_detail_view(request, osm_id: int):
         return _bad_request(exc)
 
     route = get_object_or_404(TrailRoute, osm_id=osm_id)
-    detail = route_detail(route, within)
+    detail = route_detail(route, within, config_for(request.user))
     remember_facts(route, detail)
     return Response(detail)
 
 
 @api_view(["GET"])
+@authentication_classes([OptionalTokenAuthentication])
+@permission_classes([AllowAny])
 def way_trail_view(request, source_id: str):
     """The trail panel's detail for a clicked trail way (TM05-97): its named route when it
     is a member of one, otherwise a trail assembled from the connected ways that share its
@@ -184,11 +191,12 @@ def way_trail_view(request, source_id: str):
         return _bad_request(exc)
 
     way, route, assembled = trail_for_way(source_id)
+    scoring = config_for(request.user)
     if not assembled:
-        detail = route_detail(route, within)
+        detail = route_detail(route, within, scoring)
         remember_facts(route, detail)
         return Response({**detail, "assembled": False, "assembly": None})
-    detail = route_detail(route, within)
+    detail = route_detail(route, within, scoring)
     detail["assembled"] = True
     detail["assembly"] = {
         "from_way": way.source_id,
@@ -223,8 +231,9 @@ def remember_facts(route: TrailRoute, detail: dict) -> None:
     save_route_facts(route, value)
 
 
-def route_detail(route: TrailRoute, within: int) -> dict:
-    """The route detail payload, for a stored route or an assembled one (TM05-97)."""
+def route_detail(route: TrailRoute, within: int, scoring: ScoringConfig | None = None) -> dict:
+    """The route detail payload, for a stored route or an assembled one (TM05-97).
+    `scoring` is the signed-in user's weights for the campsite scores (TM05-46)."""
     line_m, path = stitch(route.geom)
     line = line_m.transform(4326, clone=True)
 
@@ -237,7 +246,7 @@ def route_detail(route: TrailRoute, within: int) -> dict:
     located = located[:MAX_CAMPSITES]
     sites = Campsite.objects.select_related("facts").in_bulk([row[0] for row in located])
 
-    config = load_scoring_config()
+    config = scoring or load_scoring_config()
     along_settings = route_config()["along"]
     campsites = []
     for site_id, from_route, along, from_line in located:

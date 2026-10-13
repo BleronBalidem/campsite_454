@@ -53,6 +53,7 @@ from django.db.models import Func, IntegerField, Value
 
 from api.campsite_detail import stored_scores
 from geodata.models import Campsite, PublicLand, Trail, WaterFeature
+from scoring.config import ScoringConfig
 
 
 class SimplifyPreserveTopology(Func):
@@ -140,10 +141,11 @@ class Layer:
     exact: bool = False
     #: Serialise only the part of the geometry inside the viewport.
     clip: bool = False
-    #: Computed properties appended after the model fields: primary keys in, a properties
-    #: dict per key out. Called only for the rows the cap kept, so it never changes which
-    #: features the sample returns, and its cost scales with the cap, not the match count.
-    computed: Callable[[list[int]], dict[int, dict]] | None = None
+    #: Computed properties appended after the model fields: primary keys and the request's
+    #: scoring config in, a properties dict per key out. Called only for the rows the cap
+    #: kept, so it never changes which features the sample returns, and its cost scales
+    #: with the cap, not the match count.
+    computed: Callable[[list[int], ScoringConfig | None], dict[int, dict]] | None = None
 
     def matching(self, bounds: Polygon):
         """Every row this layer considers inside `bounds`, before the cap.
@@ -226,12 +228,14 @@ def collect(
     limit: int | None = None,
     simplify: float | None = None,
     bounds: Polygon | None = None,
+    scoring: ScoringConfig | None = None,
 ) -> dict:
     """One layer inside `bbox` as a GeoJSON FeatureCollection.
 
     `limit` defaults to the area-derived cap. `bounds` may be supplied by a caller that
     has already built the envelope, so a multi-layer request builds it once rather than
-    once per layer.
+    once per layer. `scoring` is the signed-in user's weights for computed properties
+    (TM05-46); None is the default config.
 
     `bbox` and `metadata` are foreign members, which RFC 7946 permits. MapLibre ignores
     what it does not recognise, so the document stays directly consumable.
@@ -248,7 +252,7 @@ def collect(
     truncated = len(rows) >= limit
     matched = layer.matching(bounds).count() if truncated else len(rows)
 
-    computed = layer.computed([row["id"] for row in rows]) if layer.computed and rows else {}
+    computed = layer.computed([r["id"] for r in rows], scoring) if layer.computed and rows else {}
     features = [
         {
             "type": "Feature",

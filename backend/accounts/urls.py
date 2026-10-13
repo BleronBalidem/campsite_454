@@ -7,6 +7,7 @@ from .views import (
     register_view,
     saved_campsite_view,
     saved_campsites_view,
+    scoring_weights_view,
 )
 
 urlpatterns = [
@@ -14,6 +15,7 @@ urlpatterns = [
     path("auth/login/", login_view),
     path("auth/logout/", logout_view),
     path("auth/me/", current_user_view),
+    path("auth/me/weights/", scoring_weights_view),
     # The list route sits above the detail route below it. <path:> matches greedily across
     # slashes, so keeping the bare collection URL first means it can never be swallowed as
     # a source_id. (It would not match an empty remainder today, but the ordering makes

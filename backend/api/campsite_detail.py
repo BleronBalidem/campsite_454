@@ -18,13 +18,17 @@ Contract: docs/api.md, "Campsite detail".
 """
 
 from django.http import Http404
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from accounts.authentication import OptionalTokenAuthentication
+from accounts.weights import config_for
 from enrichment.facts import stored_factor_results
 from enrichment.models import CampsiteFacts
 from geodata.confidence import confidence_payload
 from geodata.models import Campsite
+from scoring.config import ScoringConfig
 from scoring.engine import ScoringError, score_campsite
 from scoring.verdict import legality_verdict
 
@@ -83,30 +87,35 @@ def _facts_of(site: Campsite) -> CampsiteFacts | None:
         return None
 
 
-def _score(site: Campsite, facts: CampsiteFacts | None) -> tuple[str, dict | None]:
+def _score(
+    site: Campsite, facts: CampsiteFacts | None, config: ScoringConfig | None = None
+) -> tuple[str, dict | None]:
     """(score_status, contract-1 result or None). The one place a stored score is made:
-    the map's campsite layer scores through it too (TM05-86), so the two never disagree."""
+    the map's campsite layer scores through it too (TM05-86), so the two never disagree.
+    `config` is the signed-in user's weights (TM05-46); None scores with the defaults."""
     if facts is None:
         return PENDING, None
     try:
         return SCORED, score_campsite(
-            site, stored_only=True, evaluated=stored_factor_results(site, facts)
+            site, config, stored_only=True, evaluated=stored_factor_results(site, facts)
         )
     except ScoringError:
         return NOT_AVAILABLE, None
 
 
-def stored_scores(ids: list[int]) -> dict[int, dict]:
+def stored_scores(ids: list[int], config: ScoringConfig | None = None) -> dict[int, dict]:
     """`score` and `score_status` for each Campsite primary key in `ids`, from stored
     values only, for the map's campsite features (TM05-86)."""
     scores = {}
     for site in Campsite.objects.filter(pk__in=ids).select_related("facts"):
-        status, result = _score(site, _facts_of(site))
+        status, result = _score(site, _facts_of(site), config)
         scores[site.pk] = {"score": result["score"] if result else None, "score_status": status}
     return scores
 
 
 @api_view(["GET"])
+@authentication_classes([OptionalTokenAuthentication])
+@permission_classes([AllowAny])
 def campsite_detail_view(request, source_id: str):
     site = (
         Campsite.objects.filter(source_id=source_id)
@@ -119,7 +128,7 @@ def campsite_detail_view(request, source_id: str):
     facts = _facts_of(site)
 
     source_name = (site.name or "").strip()
-    score_status, result = _score(site, facts)
+    score_status, result = _score(site, facts, config_for(request.user))
     return Response(
         {
             "id": site.source_id,
