@@ -6,6 +6,9 @@ already belongs to another account, and simply skips creating a second row in th
 latter case. Anything else -- a distinct error, a different status code -- would let an
 attacker use this endpoint to check whether an email address has an account here.
 
+Login and register are rate-limited per client IP (TM05-88, throttling.py), which slows
+password guessing and mass sign-ups without touching any other endpoint.
+
 Login treats "no such user" and "wrong password" identically: authenticate() returns
 None for both (Django's ModelBackend runs a dummy password hash for the former so the
 two cases don't even time differently), so there is nothing extra to special-case here.
@@ -31,21 +34,26 @@ from rest_framework.decorators import (
     api_view,
     authentication_classes,
     permission_classes,
+    throttle_classes,
 )
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from geodata.models import Campsite
 
 from . import weights as user_weights
 from .models import SavedCampsite, ScoringWeights
 from .serializers import RegisterSerializer, SavedCampsiteSerializer
+from .throttling import LOGIN, REGISTER, throttle_scope
 
 User = get_user_model()
 
 
+@throttle_scope(REGISTER)
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([ScopedRateThrottle])
 def register_view(request):
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -59,8 +67,10 @@ def register_view(request):
     return Response({"username": username, "email": email}, status=status.HTTP_201_CREATED)
 
 
+@throttle_scope(LOGIN)
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([ScopedRateThrottle])
 def login_view(request):
     username = request.data.get("username", "")
     password = request.data.get("password", "")
