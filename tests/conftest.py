@@ -6,6 +6,7 @@ Add fixtures here rather than duplicating setup across test files.
 import os
 
 import pytest
+from django.core.cache import cache
 
 
 @pytest.fixture(scope="session")
@@ -51,3 +52,12 @@ def clean_registry():
         yield registry
     finally:
         registry.restore(saved)
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    """Start every test with an empty Django cache. DRF keeps rate-limit history there
+    (TM05-88), and without this, logins in one test count against the next."""
+    cache.clear()
+    yield
+    cache.clear()
