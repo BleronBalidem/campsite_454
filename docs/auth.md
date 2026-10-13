@@ -205,10 +205,32 @@ Authorization: Token 9a4f2c1e8b3d4a6f9c0e1b2d3a4f5c6d7e8f9a0b
     "capacity": null,
     "latitude": 44.1,
     "longitude": -74.05,
-    "saved_at": "2026-09-28T14:02:11.482913Z"
+    "saved_at": "2026-09-28T14:02:11.482913Z",
+    "display_name": "Marcy Dam",
+    "display_name_derived": false,
+    "score": 78,
+    "score_status": "scored",
+    "public_land": {
+      "name": "High Peaks Wilderness",
+      "manager": "State Department of Conservation",
+      "designation": "State Wilderness",
+      "access": "open",
+      "gap_status": "1"
+    }
   }
 ]
 ```
+
+The last five fields (TM05-87) come from the campsite detail endpoint's own code, so a
+saved row always matches the panel ([api.md](api.md#campsite-detail-tm05-64-scored-in-tm05-45)):
+
+- **`display_name`** is what to show: the source name, or a derived "Campsite near …" when
+  the source has none, with **`display_name_derived`** `true` so it can be styled as derived.
+- **`score`** is 0–100 from stored values only, with the caller's own weights when they
+  have saved some (TM05-46). It is `null` when not scored, never 0; **`score_status`** says
+  why: `pending` (not enriched yet) or `not_available`.
+- **`public_land`** is the smallest public land unit containing the site, or `null` outside
+  every parcel or before enrichment. Empty fields inside it are `null`.
 
 An empty list (`[]`) when nothing is saved — not a `404`. Scoped to the token's owner, so
 one user can never see another's saves; there is no id in the URL to tamper with.
