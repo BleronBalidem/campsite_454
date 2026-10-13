@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
+from api.campsite_detail import display_name_payload, facts_of, public_land_payload, score_payload
+
 User = get_user_model()
 
 
@@ -50,6 +52,10 @@ class SavedCampsiteSerializer(serializers.Serializer):
     reservable and capacity stay null when the source didn't say. DRF writes None straight
     through without calling the field, so a null reservable is not flattened into false --
     "unknown" and "not reservable" are different answers.
+
+    The display name, score and public land unit (TM05-87) come from the campsite detail
+    endpoint's own helpers, so a saved row and the panel always agree. The score uses the
+    user's weights (TM05-46), passed in the serializer context as `scoring`.
     """
 
     id = serializers.CharField(source="campsite.source_id", read_only=True)
@@ -60,6 +66,16 @@ class SavedCampsiteSerializer(serializers.Serializer):
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
     saved_at = serializers.DateTimeField(source="created_at", read_only=True)
+
+    def to_representation(self, saved):
+        site = saved.campsite
+        facts = facts_of(site)
+        return {
+            **super().to_representation(saved),
+            **display_name_payload(site, facts),
+            **score_payload(site, self.context.get("scoring")),
+            "public_land": public_land_payload(facts),
+        }
 
     def get_latitude(self, saved) -> float:
         return saved.campsite.geom.y

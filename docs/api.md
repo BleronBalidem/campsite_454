@@ -23,6 +23,7 @@ weights ([Scoring weights](#scoring-weights-tm05-46)).
 | `GET /api/campsites/<id>/detail/` | One campsite with its derived facts — see [Campsite detail](#campsite-detail-tm05-64) |
 | `GET /api/routes/` | Named hiking routes in a bbox — see [Named routes](#named-routes-tm05-60) |
 | `GET /api/routes/<osm_id>/` | One route: stats, elevation profile, campsites along it with scores |
+| `GET /api/saved-campsites/` | The signed-in user's saved campsites, with names, scores and land units — see [Saved campsites list](#saved-campsites-list-tm05-87) |
 | `GET`/`PUT`/`DELETE /api/auth/me/weights/` | The signed-in user's factor weights — see [Scoring weights](#scoring-weights-tm05-46) |
 
 There is one endpoint per layer so you can fetch only what the user has toggled on, and a
@@ -1031,6 +1032,14 @@ no trails yet as disabled.
 - **Paging.** Results come 24 at a time with **Show more**.
 - **Opening.** A card opens the map with that trail's panel, which fits the view to the
   trail.
+
+## Saved campsites list (TM05-87)
+
+`GET /api/saved-campsites/` (token required, documented in [auth.md](auth.md)) lists the
+signed-in user's saved campsites, and only theirs. Each entry carries the same
+`display_name`/`display_name_derived`, `score`/`score_status` and `public_land` as the
+campsite detail above, from the same helpers in `api/campsite_detail.py`, plus flat
+`latitude`/`longitude`. The score uses the user's own weights when they have saved some.
 
 ## Scoring weights (TM05-46)
 

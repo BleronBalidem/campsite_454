@@ -41,17 +41,33 @@ def _or_none(value):
     return value if value not in ("", None) else None
 
 
+def public_land_payload(facts: CampsiteFacts | None) -> dict | None:
+    """The public land unit containing the site, or None. Shared with the saved list
+    (TM05-87), so both describe a site's land the same way."""
+    if facts is None or not facts.land_name:
+        return None
+    return {
+        "name": facts.land_name,
+        "manager": _or_none(facts.land_manager),
+        "designation": _or_none(facts.land_designation),
+        "access": _or_none(facts.land_access),
+        "gap_status": _or_none(facts.land_gap_status),
+    }
+
+
+def display_name_payload(site: Campsite, facts: CampsiteFacts | None) -> dict:
+    """`display_name` and `display_name_derived`: the source name, or the derived one
+    when the source has none. Shared with the saved list (TM05-87)."""
+    source_name = (site.name or "").strip()
+    return {
+        "display_name": (facts.display_name if facts else source_name) or None,
+        "display_name_derived": bool(facts and facts.display_name_derived),
+    }
+
+
 def _facts_payload(facts: CampsiteFacts) -> dict:
     return {
-        "public_land": {
-            "name": facts.land_name,
-            "manager": _or_none(facts.land_manager),
-            "designation": _or_none(facts.land_designation),
-            "access": _or_none(facts.land_access),
-            "gap_status": _or_none(facts.land_gap_status),
-        }
-        if facts.land_name
-        else None,
+        "public_land": public_land_payload(facts),
         "water": {
             "name": facts.water_name,
             "distance_m": facts.water_distance_m,
@@ -80,7 +96,7 @@ def _facts_payload(facts: CampsiteFacts) -> dict:
     }
 
 
-def _facts_of(site: Campsite) -> CampsiteFacts | None:
+def facts_of(site: Campsite) -> CampsiteFacts | None:
     try:
         return site.facts
     except CampsiteFacts.DoesNotExist:
@@ -103,14 +119,17 @@ def _score(
         return NOT_AVAILABLE, None
 
 
+def score_payload(site: Campsite, config: ScoringConfig | None = None) -> dict:
+    """`score` and `score_status` alone, for lists of campsites: the map's features
+    (TM05-86) and the saved list (TM05-87). Select the site's facts with it."""
+    status, result = _score(site, facts_of(site), config)
+    return {"score": result["score"] if result else None, "score_status": status}
+
+
 def stored_scores(ids: list[int], config: ScoringConfig | None = None) -> dict[int, dict]:
-    """`score` and `score_status` for each Campsite primary key in `ids`, from stored
-    values only, for the map's campsite features (TM05-86)."""
-    scores = {}
-    for site in Campsite.objects.filter(pk__in=ids).select_related("facts"):
-        status, result = _score(site, _facts_of(site), config)
-        scores[site.pk] = {"score": result["score"] if result else None, "score_status": status}
-    return scores
+    """score_payload() for each Campsite primary key in `ids`."""
+    sites = Campsite.objects.filter(pk__in=ids).select_related("facts")
+    return {site.pk: score_payload(site, config) for site in sites}
 
 
 @api_view(["GET"])
@@ -125,7 +144,7 @@ def campsite_detail_view(request, source_id: str):
     )
     if site is None:
         raise Http404(f"No campsite with source_id {source_id!r}")
-    facts = _facts_of(site)
+    facts = facts_of(site)
 
     source_name = (site.name or "").strip()
     score_status, result = _score(site, facts, config_for(request.user))
@@ -134,8 +153,7 @@ def campsite_detail_view(request, source_id: str):
             "id": site.source_id,
             "source": site.source,
             "name": source_name or None,
-            "display_name": (facts.display_name if facts else source_name) or None,
-            "display_name_derived": bool(facts and facts.display_name_derived),
+            **display_name_payload(site, facts),
             "site_type": site.site_type,
             "reservable": site.reservable,
             "lon": round(site.geom.x, 6),

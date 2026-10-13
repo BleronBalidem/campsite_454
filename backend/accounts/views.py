@@ -182,8 +182,8 @@ def saved_campsites_view(request):
     Scoped to request.user, so the filter is the whole of the authorisation story -- there
     is no id in the URL that could be tampered with to reach someone else's list.
 
-    select_related because the serializer reads through to campsite on every row; without
-    it a user with thirty saves costs thirty-one queries.
+    select_related because the serializer reads through to campsite and its facts on every
+    row; without it a user with thirty saves costs thirty-one queries, before scoring.
 
     order_by repeats what SavedCampsite.Meta already says. It is spelled out because the
     frontend renders these in order and that ordering should not quietly change if the
@@ -191,7 +191,8 @@ def saved_campsites_view(request):
     """
     saved = (
         SavedCampsite.objects.filter(user=request.user)
-        .select_related("campsite")
+        .select_related("campsite", "campsite__facts")
         .order_by("-created_at")
     )
-    return Response(SavedCampsiteSerializer(saved, many=True).data)
+    context = {"scoring": user_weights.config_for(request.user)}
+    return Response(SavedCampsiteSerializer(saved, many=True, context=context).data)
