@@ -83,6 +83,7 @@ automatically. An unknown name lists what is available instead of failing obscur
 | `nhd-waterbodies` | `WaterFeature` | Lakes, ponds, reservoirs and wetlands from USGS NHD |
 | `ridb` | `Campsite` | Federal campsites from Recreation.gov |
 | `osm-campsites` | `Campsite` | Backcountry campsites and lean-to shelters from OpenStreetMap |
+| `osm-landmarks` | `Landmark` | Peaks (name, elevation) and trailheads (name) from OpenStreetMap |
 
 Naming follows one rule: a source that yields a single dataset gets its bare name
 (`padus`, `ridb`), and a source yielding several gets `source-dataset` (`osm-trails`,
@@ -407,6 +408,33 @@ coverage comes from OpenStreetMap instead. Use `white-mountains-nh` when you wan
 RIDB actually work — the White Mountain National Forest is USFS.
 
 ---
+
+### osm-landmarks (TM05-89)
+
+Peaks (`natural=peak`) and trailheads (`highway=trailhead`) from OpenStreetMap through
+Overpass, written to one `Landmark` table with a `kind` of `peak` or `trailhead`. They
+share a table because the framework binds one adapter to one model and both are a named
+point.
+
+```
+.venv/bin/python backend/manage.py ingest osm-landmarks adirondacks
+```
+
+- **Nodes and ways, `out center`.** Nearly all are nodes; a trailhead mapped as a way
+  (a parking area outline) becomes the point Overpass computes for it. Relations are not
+  requested.
+- **Elevation.** `ele` is metres by OSM convention but free text in practice.
+  `parse_elevation_m` reads a number with an optional metre or foot unit (`1629`,
+  `1629 m`, `5344 ft`) and stores `elevation_m` in metres. Anything else, such as
+  `1,629` or `~1600`, or a value outside the range of elevations on Earth, is stored as
+  null. A peak with no usable `ele` is still ingested. A trailhead's `ele` is kept only
+  in `raw`.
+- **Idempotent** on `(source, source_id)`, with `source_id` as `node/<id>` or `way/<id>`.
+  Each run writes an `IngestRun` with the row count and the tag filters it asked for.
+- **Served** as the `peaks` and `trailheads` layers: `/api/peaks/`, `/api/trailheads/`,
+  and `/api/map-data/?layers=peaks,trailheads`. See `docs/api.md`.
+- **Not measured yet.** No full-park run has been recorded here; the test fixture is a
+  real Overpass response for a High Peaks slice (2026-10-13: 50 peaks, 5 trailheads).
 
 ### osm-routes (TM05-58)
 
