@@ -9,7 +9,7 @@ The short version, once the prerequisites are installed:
 git clone https://github.com/dtstaple/campsite_454.git
 cd campsite_454
 make setup
-make restore DUMP=https://github.com/dtstaple/campsite_454/releases/download/dev-data-2026-10-05/campsite-2026-10-05.dump
+make restore DUMP=https://github.com/dtstaple/campsite_454/releases/download/dev-data-2026-10-13/campsite-2026-10-13.dump
 make doctor
 make dev
 ```
@@ -113,15 +113,16 @@ A fresh database is empty. Choose one of three ways to fill it:
 ### Restore a dump
 
 ```
-make restore DUMP=https://github.com/dtstaple/campsite_454/releases/download/dev-data-2026-10-05/campsite-2026-10-05.dump
+make restore DUMP=https://github.com/dtstaple/campsite_454/releases/download/dev-data-2026-10-13/campsite-2026-10-13.dump
 ```
 
-That is the current snapshot, [dev-data-2026-10-05](https://github.com/dtstaple/campsite_454/releases/tag/dev-data-2026-10-05) (103 MB): the Adirondacks and the White Mountains, with routes, profiles and enrichment. `make restore` with no `DUMP` prints the latest URL too.
+That is the current snapshot, [dev-data-2026-10-13](https://github.com/dtstaple/campsite_454/releases/tag/dev-data-2026-10-13) (104 MB): the Adirondacks and the White Mountains, with routes, profiles and enrichment for both regions, the Adirondack lean-tos, and peaks and trailheads. What it holds and how it was checked is in [data-status.md](data-status.md). `make restore` with no `DUMP` prints the latest URL too.
 
 `DUMP` can be a URL or a local path. Restoring **replaces** the data in your local
 database.
 
-Dumps never contain accounts, tokens, sessions or saved campsites, so make yourself a login
+Dumps never contain accounts, tokens, sessions, saved campsites, waypoints, trip plans or
+saved trails, so make yourself a login
 afterwards (see [section 5](#5-log-in)).
 
 To publish a dump for the team:

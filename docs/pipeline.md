@@ -433,8 +433,9 @@ point.
   Each run writes an `IngestRun` with the row count and the tag filters it asked for.
 - **Served** as the `peaks` and `trailheads` layers: `/api/peaks/`, `/api/trailheads/`,
   and `/api/map-data/?layers=peaks,trailheads`. See `docs/api.md`.
-- **Not measured yet.** No full-park run has been recorded here; the test fixture is a
-  real Overpass response for a High Peaks slice (2026-10-13: 50 peaks, 5 trailheads).
+- **Measured (2026-10-13).** `ingest osm-landmarks adirondacks` loaded 1,839 rows in
+  40 s with status success: 1,748 peaks, 1,707 of them with a usable elevation, and 91
+  trailheads. Overpass answered 504 twice and the retries recovered.
 
 ### osm-routes (TM05-58)
 

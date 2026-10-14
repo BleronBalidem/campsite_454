@@ -11,7 +11,7 @@ MapLibre.
 
 ```
 make setup
-make restore DUMP=https://github.com/dtstaple/campsite_454/releases/download/dev-data-2026-10-05/campsite-2026-10-05.dump
+make restore DUMP=https://github.com/dtstaple/campsite_454/releases/download/dev-data-2026-10-13/campsite-2026-10-13.dump
 make doctor
 make dev                        # http://localhost:5173
 ```
