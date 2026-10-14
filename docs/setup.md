@@ -190,6 +190,52 @@ The upstream services (Overpass, NHD, PAD-US, 3DEP) are public and occasionally 
 down. When a step fails, the run stops and prints the command that re-runs just that step.
 The details of each source are in `docs/pipeline.md`.
 
+### Refresh one region: `make refresh` (TM05-91)
+
+```
+make refresh REGION=adirondacks
+```
+
+One command that brings a region's data up to date and reports what it loaded. `REGION`
+is a name from `backend/pipeline/regions.yml` and defaults to `adirondacks`. It runs, in
+order:
+
+1. **Every ingest source**, the same list `manage.py ingest --list-sources` prints:
+   padus, nhd-flowlines, nhd-waterbodies, osm-trails, osm-campsites, osm-landmarks, ridb
+   (skipped without `RIDB_API_KEY`), osm-routes. A newly registered source is included
+   automatically.
+2. **Route profiles** (`build_route_profiles`).
+3. **Enrichment** (`enrich_campsites`, then `enrich_routes`).
+
+It **stops at the first step that fails**, exits non-zero, and names the steps it did not
+run. Fix the cause and run it again: ingests upsert, and profiles and enrichment are
+cached, so the finished steps are quick the second time.
+
+It always ends with a per-step summary. `seconds` is the time the step took, and
+`records` is the row count from the `IngestRun` rows that step wrote; steps that write no
+`IngestRun` (profiles, enrichment) show `-`. The layout, with illustrative numbers:
+
+```
+step              result       seconds   records  notes
+padus             ok              19.2     1,574  IngestRun: partial
+osm-trails        ok              88.0    18,067  IngestRun: success
+ridb              skipped          0.0         -  RIDB_API_KEY not set
+route-profiles    ok             412.5         -
+enrich            ok             150.3         -
+total                            670.0    19,641
+```
+
+`partial` is normal for some sources; see `docs/pipeline.md`, section 4.
+
+**`make refresh` or `make data`?** They run the same steps in the same order. Use
+`make refresh` for a whole region when you want the record counts; use `make data
+STEPS=...` to re-run chosen steps.
+
+**How it was verified.** The order, stopping on failure, the summary and the RIDB skip are
+covered by `tests/test_refresh_command.py`, which runs in CI against PostGIS with every
+step stubbed. It has not yet been run end to end against the live sources: the local
+database was down when it was written (2026-10-13).
+
 ### Sample data
 
 ```
