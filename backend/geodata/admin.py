@@ -23,7 +23,7 @@ from django.contrib import admin
 from django.contrib.gis.db import models as gis_models
 from django.forms import TextInput
 
-from geodata.models import Campsite, IngestRun, PublicLand, Trail, WaterFeature
+from geodata.models import Campsite, IngestRun, Landmark, PublicLand, Trail, WaterFeature
 
 
 class SourceRecordAdmin(admin.ModelAdmin):
@@ -67,6 +67,12 @@ class SourceRecordAdmin(admin.ModelAdmin):
 class CampsiteAdmin(SourceRecordAdmin):
     list_display = ("name", "source", "source_id", "site_type", "reservable", "capacity", "region")
     list_filter = ("source", "site_type", "reservable")
+
+
+@admin.register(Landmark)
+class LandmarkAdmin(SourceRecordAdmin):
+    list_display = ("name", "source", "source_id", "kind", "elevation_m", "region")
+    list_filter = ("source", "kind")
 
 
 @admin.register(Trail)

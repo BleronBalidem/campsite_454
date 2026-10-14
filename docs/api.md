@@ -19,7 +19,9 @@ weights ([Scoring weights](#scoring-weights-tm05-46)).
 | `GET /api/trails/` | Trails — MultiLineStrings |
 | `GET /api/water/` | Streams, rivers, lakes, ponds, wetlands — LineStrings and Polygons |
 | `GET /api/public-land/` | Public land parcels and legal access — MultiPolygons |
-| `GET /api/map-data/` | All four at once, for the initial load |
+| `GET /api/peaks/` | Peaks, with elevation — points (TM05-89) |
+| `GET /api/trailheads/` | Trailheads — points (TM05-89) |
+| `GET /api/map-data/` | The first four at once, for the initial load; peaks and trailheads on request with `layers=` |
 | `GET /api/campsites/<id>/detail/` | One campsite with its derived facts — see [Campsite detail](#campsite-detail-tm05-64) |
 | `GET /api/routes/` | Named hiking routes in a bbox — see [Named routes](#named-routes-tm05-60) |
 | `GET /api/routes/<osm_id>/` | One route: stats, elevation profile, campsites along it with scores |
@@ -71,7 +73,13 @@ and transfers faster than a larger one.
 
 ### `layers` (optional, `/api/map-data/` only)
 
-Comma-separated subset of `campsites,trails,water`. Defaults to all three.
+Comma-separated subset of `campsites,trails,water,public-land,peaks,trailheads`.
+Defaults to the first four.
+
+`peaks` and `trailheads` (TM05-89) are opt-in: they are returned only when named, for
+example `layers=campsites,peaks,trailheads`, so the default first paint is unchanged. A
+peak carries `name` and `elevation_m` (metres, `null` when OpenStreetMap has no usable
+`ele`); a trailhead carries `name`. Either name may be empty.
 
 Use it to skip layers you will not draw. Below zoom 9 an individual stream is well under
 a pixel, and asking for `layers=campsites` over the whole park is **223 bytes in 70 ms**

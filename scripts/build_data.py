@@ -32,6 +32,7 @@ def steps(region: str) -> list[tuple[str, list[str]]]:
         ("nhd-waterbodies", ["ingest", "nhd-waterbodies", region]),
         ("osm-trails", ["ingest", "osm-trails", region]),
         ("osm-campsites", ["ingest", "osm-campsites", region]),
+        ("osm-landmarks", ["ingest", "osm-landmarks", region]),
         ("ridb", ["ingest", "ridb", region]),
         ("osm-routes", ["ingest", "osm-routes", region]),
         ("route-profiles", ["build_route_profiles", region]),

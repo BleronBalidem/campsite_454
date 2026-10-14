@@ -143,7 +143,7 @@ make data REGION=white-mountains-nh    # another region from regions.yml
 ```
 
 - Sources: `padus`, `nhd-flowlines`, `nhd-waterbodies`, `osm-trails`, `osm-campsites`,
-  `ridb` (needs `RIDB_API_KEY`), and `osm-routes`.
+  `osm-landmarks`, `ridb` (needs `RIDB_API_KEY`), and `osm-routes`.
 - After the ingests come `build_route_profiles <region>` and then
   `enrich_campsites <region>`.
 - To skip all of it, use `make restore DUMP=<url>`.

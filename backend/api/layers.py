@@ -52,7 +52,7 @@ from django.contrib.gis.geos import Polygon
 from django.db.models import Func, IntegerField, Value
 
 from api.campsite_detail import stored_scores
-from geodata.models import Campsite, PublicLand, Trail, WaterFeature
+from geodata.models import Campsite, Landmark, PublicLand, Trail, WaterFeature
 from scoring.config import ScoringConfig
 
 
@@ -146,6 +146,12 @@ class Layer:
     #: kept, so it never changes which features the sample returns, and its cost scales
     #: with the cap, not the match count.
     computed: Callable[[list[int], ScoringConfig | None], dict[int, dict]] | None = None
+    #: Field lookups narrowing the model to this layer's rows, for a model that holds more
+    #: than one layer (TM05-89: peaks and trailheads share `Landmark`).
+    where: tuple[tuple[str, Any], ...] = ()
+    #: Whether /api/map-data/ returns this layer when the caller names none. False makes a
+    #: layer opt-in through `layers=`, so adding it changes nothing for existing callers.
+    default: bool = True
 
     def matching(self, bounds: Polygon):
         """Every row this layer considers inside `bounds`, before the cap.
@@ -154,7 +160,7 @@ class Layer:
         disagree about what "matched" means.
         """
         lookup = "geom__intersects" if self.exact else "geom__bboverlaps"
-        return self.model.objects.filter(**{lookup: bounds})
+        return self.model.objects.filter(**{lookup: bounds}, **dict(self.where))
 
     def queryset(self, bounds: Polygon, limit: int, simplify: float | None):
         geometry = Intersection("geom", Value(bounds)) if self.clip else "geom"
@@ -210,6 +216,22 @@ LAYERS: dict[str, Layer] = {
         # because that field describes the PAD-US dataset extent, not the parcel.
         exact=True,
         clip=True,
+    ),
+    # TM05-89. Opt-in on /api/map-data/ (`layers=peaks,trailheads`): the map does not draw
+    # them yet, so the default first paint must not start paying for them.
+    "peaks": Layer(
+        name="peaks",
+        model=Landmark,
+        properties=("name", "elevation_m"),
+        where=(("kind", Landmark.Kind.PEAK),),
+        default=False,
+    ),
+    "trailheads": Layer(
+        name="trailheads",
+        model=Landmark,
+        properties=("name",),
+        where=(("kind", Landmark.Kind.TRAILHEAD),),
+        default=False,
     ),
 }
 

@@ -54,13 +54,14 @@ def _simplify_param(request) -> float | None:
 def _layers_param(request):
     """Which layers /api/map-data/ should actually query.
 
-    Defaults to all of them. A client that will not draw a layer at the current zoom
+    Defaults to every default layer; an opt-in one (peaks, trailheads) is returned only
+    when named here. A client that will not draw a layer at the current zoom
     should exclude it here rather than fetching and discarding it -- below the zoom
     where individual streams are sub-pixel, that is most of the payload.
     """
     raw = request.query_params.get("layers")
     if raw is None or not str(raw).strip():
-        return list(LAYERS)
+        return [name for name, layer in LAYERS.items() if layer.default]
 
     names = [part.strip() for part in raw.split(",") if part.strip()]
     unknown = [name for name in names if name not in LAYERS]

@@ -154,8 +154,9 @@ This rebuilds the Adirondacks from the live sources. It runs every ingest, in th
 3. nhd-waterbodies
 4. osm-trails
 5. osm-campsites
-6. ridb (skipped without a key)
-7. osm-routes
+6. osm-landmarks (peaks and trailheads)
+7. ridb (skipped without a key)
+8. osm-routes
 
 Then it precomputes 3DEP elevation profiles for every named route (`build_route_profiles`)
 and enriches the campsites (`enrich_campsites`). Each step is timed, and a summary table
