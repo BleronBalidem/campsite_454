@@ -188,6 +188,35 @@ class TrailRoute(SourceRecord):
         ]
 
 
+class Landmark(SourceRecord):
+    """
+    A named point a hiker navigates by: a peak or a trailhead (TM05-89).
+
+    One table with a `kind` rather than a model each, because the two are the same shape
+    (a point with a name) and the adapter framework binds one adapter to one model. No
+    `geom_m`: nothing measures distance to a landmark yet, and the column can be added
+    with the first query that does.
+    """
+
+    class Kind(models.TextChoices):
+        PEAK = "peak", "Peak"
+        TRAILHEAD = "trailhead", "Trailhead"
+
+    geom = gis_models.PointField(srid=4326, spatial_index=True)
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    elevation_m = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Metres above sea level. Null when the source has none or it is unreadable.",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["source", "source_id"], name="unique_landmark_source")
+        ]
+        indexes = [models.Index(fields=["kind"])]
+
+
 class WaterFeature(SourceRecord):
     """
     Water. Generic GeometryField because NHD gives flowlines as lines (streams,

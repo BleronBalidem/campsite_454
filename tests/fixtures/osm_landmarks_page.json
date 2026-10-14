@@ -1,0 +1,112 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "elements": [
+    {
+      "type": "node",
+      "id": 357598546,
+      "lat": 44.1127777,
+      "lon": -73.9236983,
+      "tags": {
+        "description": "Highest Mountain in New York State",
+        "ele": "1629",
+        "gnis:feature_id": "973357",
+        "highest_point": "4",
+        "name": "Mount Marcy",
+        "name:br": "Menez Marcy",
+        "name:fr": "Mont Marcy",
+        "name:ru": "Марси",
+        "natural": "peak",
+        "wikidata": "Q1858227",
+        "wikipedia": "en:Mount Marcy"
+      }
+    },
+    {
+      "type": "node",
+      "id": 357598496,
+      "lat": 44.1435874,
+      "lon": -73.9866839,
+      "tags": {
+        "ele": "1555",
+        "gnis:feature_id": "973340",
+        "name": "Algonquin Peak",
+        "natural": "peak",
+        "summit:register": "yes",
+        "wikidata": "Q4724340"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4244476268,
+      "lat": 44.1351287,
+      "lon": -74.0002001,
+      "tags": {
+        "ele": "1387.7",
+        "name": "Shepherd's Tooth",
+        "natural": "peak"
+      }
+    },
+    {
+      "type": "node",
+      "id": 12052364297,
+      "lat": 44.1625321,
+      "lon": -73.917447,
+      "tags": {
+        "ele": "1214",
+        "natural": "peak"
+      }
+    },
+    {
+      "type": "node",
+      "id": 8681574779,
+      "lat": 44.1923745,
+      "lon": -73.8588095,
+      "tags": {
+        "name": "Burtons Peak",
+        "natural": "peak"
+      }
+    },
+    {
+      "type": "node",
+      "id": 8681659246,
+      "lat": 44.1434446,
+      "lon": -73.9074326,
+      "tags": {
+        "name": "Table Top Mountain - Middle Peak",
+        "natural": "peak"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11384939604,
+      "lat": 44.2990405,
+      "lon": -73.9946501,
+      "tags": {
+        "highway": "trailhead",
+        "hiking": "yes",
+        "name": "Brewster Peninsula Trails Parking Area",
+        "operator": "New York State Depeartment of Environmental Conservation"
+      }
+    },
+    {
+      "type": "node",
+      "id": 11384939616,
+      "lat": 44.2965849,
+      "lon": -73.9432672,
+      "tags": {
+        "highway": "trailhead",
+        "hiking": "yes",
+        "name": "Cherry Patch Pond Trail Parking Area"
+      }
+    },
+    {
+      "type": "node",
+      "id": 10926928454,
+      "lat": 44.2762844,
+      "lon": -73.9851707,
+      "tags": {
+        "highway": "trailhead"
+      }
+    }
+  ]
+}

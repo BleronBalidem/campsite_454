@@ -5,8 +5,9 @@ Importing this package registers every shipped adapter (PipelineConfig.ready doe
 startup).
 
 Shipped: PAD-US (public land), OSM trails, OSM hiking routes, USGS NHD water (flowlines
-and waterbodies), RIDB campsites, and OSM campsites. Campsites come from two sources because RIDB is
-federal-only and the Adirondacks are state land -- see osm_campsites.
+and waterbodies), RIDB campsites, OSM campsites, and OSM landmarks (peaks and
+trailheads). Campsites come from two sources because RIDB is federal-only and the
+Adirondacks are state land -- see osm_campsites.
 
 To add a source: create a module here, subclass SourceAdapter, decorate it with
 @register, and import it below. No other file changes.
@@ -16,6 +17,7 @@ To add a source: create a module here, subclass SourceAdapter, decorate it with
 from pipeline.adapters import (  # noqa: E402,F401  (order deliberate)
     nhd,
     osm_campsites,
+    osm_landmarks,
     osm_routes,
     osm_trails,
     padus,
