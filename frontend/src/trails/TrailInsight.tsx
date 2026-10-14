@@ -632,7 +632,8 @@ function FinderEffects({
     }
     const points: Feature<Point>[] = campsites.map((site) => ({
       type: "Feature",
-      properties: { id: site.id },
+      // TM05-72: the marker colour (ALONG_POINTS) reads the score the list row shows.
+      properties: { id: site.id, score: site.score },
       geometry: { type: "Point", coordinates: [site.lon, site.lat] },
     }));
     source.setData({ type: "FeatureCollection", features: points });

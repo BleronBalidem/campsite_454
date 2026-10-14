@@ -9,7 +9,8 @@
 
 import type * as maplibregl from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
-import { numericToken, token } from "../theme";
+import { numericToken, scoreColors, token } from "../theme";
+import { scoreColorExpression } from "../score/grade";
 
 export const ROUTES_SOURCE = "named-routes";
 export const SELECTED_SOURCE = "named-route-selected";
@@ -33,7 +34,6 @@ export function addRouteLayers(map: maplibregl.Map): void {
   const route = token("--map-route") || "#e9d8a6";
   const selected = token("--map-route-selected") || "#ffd166";
   const casing = token("--map-route-casing") || "#15130f";
-  const campsite = token("--map-campsites") || "#ff5a68";
   const stroke = token("--text-primary") || "#ede7d9";
   const hitWidth = numericToken("--map-hit-width", 14);
 
@@ -109,7 +109,9 @@ export function addRouteLayers(map: maplibregl.Map): void {
     source: ALONG_SOURCE,
     paint: {
       "circle-radius": numericToken("--map-campsites-radius", 6),
-      "circle-color": campsite,
+      // TM05-72: the main markers' grade colours, from the score the trail list shows for
+      // the site, so a marker never disagrees with its row. No score is never an F.
+      "circle-color": scoreColorExpression(scoreColors()) as maplibregl.ExpressionSpecification,
       "circle-stroke-width": numericToken("--map-campsites-stroke-width", 1.5),
       "circle-stroke-color": stroke,
     },
