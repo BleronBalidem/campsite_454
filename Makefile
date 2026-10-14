@@ -25,16 +25,18 @@ REGION ?= adirondacks
 STEPS ?=
 DUMP ?=
 # The current team snapshot (GitHub Release). Update it when a new snapshot is published.
-SNAPSHOT_URL := https://github.com/dtstaple/campsite_454/releases/download/dev-data-2026-10-05/campsite-2026-10-05.dump
+SNAPSHOT_URL := https://github.com/dtstaple/campsite_454/releases/download/dev-data-2026-10-13/campsite-2026-10-13.dump
 OUT ?= dumps/campsite-$(shell date +%Y-%m-%d).dump
 
 # Python 3.12 exactly: CI runs 3.12, and 3.13/3.14 have no wheels for some pinned deps.
 PYTHON312 := $(shell command -v python3.12 2>/dev/null)
 
 # Data that belongs to a person, not the project: dumped as empty tables.
-# 'accounts_*' is a pattern, so a new per-user table in accounts/ is left out automatically.
+# 'accounts_*' and 'planning_*' are patterns, so a new per-user table in either app is left
+# out automatically. Every planning table is a user's own: waypoints, trip plans and their
+# stops, saved trails (TM05-90).
 PERSONAL_TABLES := auth_user auth_user_groups auth_user_user_permissions authtoken_token \
-	'accounts_*' django_session django_admin_log
+	'accounts_*' 'planning_*' django_session django_admin_log
 
 .PHONY: help setup doctor dev backend frontend data refresh restore dump dev-phone prewarm
 
@@ -122,7 +124,7 @@ dump:
 		--format=custom --no-owner --schema=public \
 		$(foreach t,$(PERSONAL_TABLES),--exclude-table-data=$(t)) > $(OUT)
 	@ls -lh $(OUT)
-	@echo "Dump written (accounts, tokens, sessions and saved campsites left out)."
+	@echo "Dump written (accounts, tokens, sessions, saved campsites and trip plans left out)."
 
 # The dump's own `public` schema entry is skipped: PostGIS lives in that schema, so
 # --clean could never drop it, and the schema already exists in every database here.
