@@ -5,6 +5,7 @@
 #   make doctor    check everything, with a FIX line for each failure
 #   make restore DUMP=<path-or-url>   load a database dump (fast data path)
 #   make data      rebuild all Adirondacks data from the sources (slow data path)
+#   make refresh REGION=<region>   refresh one region, with record counts per step
 #   make dev       run the backend (:8000) and frontend (:5173) together
 #   make dev-phone the same over HTTPS on the LAN, to test on a phone (TM05-103)
 #   make prewarm   cache the campsite search for the demo trails (TRAILS="A,B")
@@ -35,10 +36,10 @@ PYTHON312 := $(shell command -v python3.12 2>/dev/null)
 PERSONAL_TABLES := auth_user auth_user_groups auth_user_user_permissions authtoken_token \
 	'accounts_*' django_session django_admin_log
 
-.PHONY: help setup doctor dev backend frontend data restore dump dev-phone prewarm
+.PHONY: help setup doctor dev backend frontend data refresh restore dump dev-phone prewarm
 
 help:
-	@sed -n '4,12p' Makefile | sed 's/^# //'
+	@sed -n '4,13p' Makefile | sed 's/^# //'
 
 setup:
 	@if [ -z "$(PYTHON312)" ]; then \
@@ -109,6 +110,11 @@ frontend:
 
 data:
 	$(VPY) scripts/build_data.py --region $(REGION) $(if $(STEPS),--only $(STEPS))
+
+# TM05-91: every ingest source, then route profiles, then enrichment, for one region.
+# Stops at the first failure and prints time and IngestRun record counts per step.
+refresh:
+	$(VPY) backend/manage.py refresh $(REGION)
 
 dump:
 	@mkdir -p $(dir $(OUT))
