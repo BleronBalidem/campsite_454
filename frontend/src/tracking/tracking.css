@@ -84,9 +84,16 @@
   font-size: var(--text-sm);
 }
 
+/* The glance row sizes to its values, so "mi 4.2 of 7.1" never wraps at phone width. */
+.hike-glance {
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+}
+
 .hike-glance .hike-stat dd {
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
+  white-space: nowrap;
 }
 
 .hike-trail p {
@@ -217,4 +224,25 @@
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.hike-simulate {
+  display: inline-flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.hike-simulate select {
+  padding: var(--space-xs);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+.hike-speed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
 }
