@@ -383,3 +383,16 @@
   /* MapLibre's attribution, expanded, at phone width: two lines. */
   --phone-attribution-height: 60px;
 }
+
+/* --- Hike tracking (TM05-111) ------------------------------------------------------------ */
+:root {
+  /* The breadcrumb: the live dot's blue, so the track and the dot read as one thing. */
+  --hike-track: var(--live-dot);
+  --hike-track-width: 4;
+  --hike-track-opacity: 0.9;
+  --hike-simulated: var(--accent);
+  --hike-panel-width: 300px;
+  --hike-route-width: 280px;
+  /* Room for one row of location buttons under the panel. */
+  --hike-panel-lift: 52px;
+}

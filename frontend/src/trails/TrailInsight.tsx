@@ -56,6 +56,9 @@ import type { OpenRequest } from "../profile/openRequest";
 import type { WorkedPlan } from "../plans/api";
 import { draftFor, toggleStop, type PlanDraft } from "../plans/draft";
 import { useSession } from "../session";
+import { StartHike } from "../tracking/StartHike";
+import { trailSnapshot } from "../tracking/snapshot";
+import type { TrailSnapshot } from "../tracking/progress";
 import "./trails.css";
 
 /** Below this zoom a route list would be most of a region; skip the request. */
@@ -81,6 +84,8 @@ interface Props {
   openRequest?: Extract<OpenRequest, { kind: "trail" | "plan" }> | null;
   /** TM05-103: the hiker's live position, for "mi X.X along <trail>". */
   userPosition?: { lon: number; lat: number } | null;
+  /** TM05-111: start a hike along the open trail. */
+  hike?: { busy: boolean; onStart: (trail: TrailSnapshot) => void };
 }
 
 export default function TrailInsight({
@@ -89,6 +94,7 @@ export default function TrailInsight({
   onHoverCampsite,
   openRequest,
   userPosition,
+  hike,
 }: Props) {
   // A named route by relation id, or (TM05-97) a named trail way, which the API resolves to
   // its route or to a trail assembled from the connected same-name ways.
@@ -538,6 +544,11 @@ export default function TrailInsight({
         setSelected(target);
       }}
       onConnectionHover={(connection) => setHoveredJunctions(connection?.junctions ?? null)}
+      hike={
+        hike && readyDetail ? (
+          <StartHike busy={hike.busy} onStart={() => hike.onStart(trailSnapshot(readyDetail, candidates))} />
+        ) : null
+      }
       onCandidate={(candidate) => {
         setCursorM(candidate.distance_along_m);
         setOpenCandidate(candidate);
