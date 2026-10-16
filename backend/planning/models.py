@@ -137,3 +137,48 @@ class SavedTrail(models.Model):
 
     def __str__(self):
         return f"{self.name} saved by {self.user}"
+
+
+class Hike(models.Model):
+    """A recorded hike (TM05-111): the track the phone walked, and its numbers.
+
+    Only ever written when the hiker chooses Save at the end of a hike; nothing is sent
+    while one is in progress. `track` is the timestamped points, in segments: a new
+    segment starts wherever the recording had a gap (paused, or the page was hidden), so a
+    map or GPX file never draws a straight line across time nobody recorded. `geom` is the
+    same track as geometry, for the map. The numbers are the ones the hiker saw (computed
+    in the browser, frontend/src/tracking/track.ts), stored rather than recomputed so the
+    saved hike says exactly what the display said.
+    """
+
+    class Mode(models.TextChoices):
+        TRAIL = "trail", "Trail"
+        FREE = "free", "Free"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="hikes"
+    )
+    name = models.CharField(max_length=120)
+    mode = models.CharField(max_length=8, choices=Mode.choices)
+    simulated = models.BooleanField(default=False)
+    # The trail a trail-mode hike followed, by its stable identity (as for plans), plus a
+    # snapshot of its name for the Profile list.
+    osm_id = models.BigIntegerField(null=True, blank=True)
+    from_way = models.CharField(max_length=64, blank=True, default="")
+    trail_name = models.CharField(max_length=255, blank=True, default="")
+    started_at = models.DateTimeField()
+    ended_at = models.DateTimeField()
+    elapsed_s = models.FloatField()
+    moving_s = models.FloatField()
+    distance_m = models.FloatField()
+    gain_m = models.FloatField()
+    #: [[[lon, lat, ele_m | null, unix_ms], ...], ...]: one list per segment.
+    track = models.JSONField()
+    geom = gis_models.MultiLineStringField(srid=4326, spatial_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-started_at", "-id"]
+
+    def __str__(self):
+        return f"{self.name} ({self.mode}) by {self.user}"
