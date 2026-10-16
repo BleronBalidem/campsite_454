@@ -1106,6 +1106,52 @@ stop loading because its token was revoked in another tab.
 Stored factor results (TM05-86) do not depend on weights, so personal weights cost nothing
 extra per request.
 
+## Recorded hikes (TM05-111)
+
+A hike is recorded in the browser and sent **once, when the hiker chooses Save**. No
+endpoint takes a position while a hike is in progress. How the numbers are worked out is
+in docs/tracking.md.
+
+| Method and path | What it does | Success |
+|---|---|---|
+| `GET /api/hikes/` | The user's hikes, newest first, **without** their tracks | 200 |
+| `POST /api/hikes/` | Save a finished hike (body below) | **201**, with the hike and its track |
+| `GET /api/hikes/<id>/` | One hike, with its `track` | 200 |
+| `DELETE /api/hikes/<id>/` | Delete it | 204 |
+| `GET /api/hikes/<id>/gpx/` | The hike as GPX 1.1: one `<trkseg>` per recorded segment, a `<time>` on every point, `<ele>` where one was sampled | 200, `application/gpx+xml`, as an attachment |
+
+The POST body:
+
+```json
+{
+  "name": "Hike on Van Hoevenberg Trail",
+  "mode": "trail",
+  "simulated": false,
+  "osm_id": 6619234,
+  "from_way": null,
+  "trail_name": "Van Hoevenberg Trail",
+  "elapsed_s": 13980,
+  "moving_s": 12710,
+  "distance_m": 11402.5,
+  "gain_m": 868.4,
+  "track": [[[-73.962732, 44.1829, 663.2, 1791043200000], ...], [...]]
+}
+```
+
+- **The track.** `track` is a list of segments, each a list of
+  `[lon, lat, elevation_m or null, unix_ms]`. A new segment begins wherever the recording
+  had a gap: a pause, or the page hidden. Times must never go backwards. At most 40,000
+  points and 500 segments are allowed, and at least one segment needs two points.
+- **What is stored.** `started_at` and `ended_at` are taken from the track's own first and
+  last times. The track is also stored as a 4326 MultiLineString with a spatial index. The
+  numbers are stored as sent, which is what the display showed.
+- **Mode.** `mode` is `trail` or `free`. A free hike keeps no trail fields.
+- **Limits and errors.** Each user can keep up to 500 hikes. A bad body or track returns
+  **400** with `{"error": "..."}`.
+- **Authentication and isolation** work as for waypoints and plans: a token is required
+  (**401** without one), and another user's hike returns **404** on every endpoint.
+  Deleting the account deletes its hikes.
+
 ## Not included yet
 
 **Scores on the trail, water and public-land layers.** Only campsites are scored. Campsite
