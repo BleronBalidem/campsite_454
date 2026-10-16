@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .candidate_views import route_candidates_view, way_candidates_view
+from .hike_views import hike_gpx_view, hike_view, hikes_view
 from .plan_views import plan_gpx_view, plan_preview_view, plan_view, plans_view
 from .saved_trail_views import saved_trail_view, saved_trails_view
 from .views import waypoint_view, waypoints_view
@@ -10,6 +11,9 @@ urlpatterns = [
     path("waypoints/<int:pk>/", waypoint_view, name="waypoint"),
     path("saved-trails/", saved_trails_view, name="saved-trails"),
     path("saved-trails/<int:pk>/", saved_trail_view, name="saved-trail"),
+    path("hikes/", hikes_view, name="hikes"),
+    path("hikes/<int:pk>/", hike_view, name="hike"),
+    path("hikes/<int:pk>/gpx/", hike_gpx_view, name="hike-gpx"),
     path("plans/", plans_view, name="plans"),
     path("plans/preview/", plan_preview_view, name="plan-preview"),
     path("plans/<int:pk>/", plan_view, name="plan"),

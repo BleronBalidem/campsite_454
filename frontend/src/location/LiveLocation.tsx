@@ -8,9 +8,12 @@
  * Positions come from navigator.geolocation.watchPosition with high accuracy, and are
  * passed up (onPosition) so the trail panel can say "mi X.X along <trail>". Nothing leaves
  * the browser. Replaces TM05-78's MapLibre locate button: one location control, not two.
+ *
+ * While a hike is recorded (TM05-111) the dot shows the hike's position instead -- real
+ * or simulated -- and following starts with the hike.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import * as maplibregl from "maplibre-gl";
 import { prefersReducedMotion } from "../trails/terrain3d";
 import { token } from "../theme";
@@ -27,6 +30,10 @@ export interface LivePosition {
 interface Props {
   map: maplibregl.Map | null;
   onPosition: (position: LivePosition | null) => void;
+  /** TM05-111: the hike's latest position while one is recorded. */
+  tracked?: LivePosition | null;
+  /** More buttons in the same group (TM05-111: Track). */
+  children?: ReactNode;
 }
 
 const SOURCE = "live-accuracy";
@@ -42,10 +49,17 @@ function safeStorage(): Storage | null {
   }
 }
 
-export default function LiveLocation({ map, onPosition }: Props) {
+export default function LiveLocation({ map, onPosition, tracked = null, children }: Props) {
   const [on, setOn] = useState(false);
   const [follow, setFollow] = useState(false);
-  const [position, setPosition] = useState<LivePosition | null>(null);
+  const [ownPosition, setPosition] = useState<LivePosition | null>(null);
+  const position = tracked ?? ownPosition;
+  // A hike starting turns following on; it stays the hiker's to turn off.
+  const [wasTracking, setWasTracking] = useState(false);
+  if (wasTracking !== (tracked !== null)) {
+    setWasTracking(tracked !== null);
+    if (tracked) setFollow(true);
+  }
   const [problem, setProblem] = useState<string | null>(null);
   const report = useRef(onPosition);
   useEffect(() => {
@@ -119,13 +133,13 @@ export default function LiveLocation({ map, onPosition }: Props) {
   }, [map, position]);
 
   useEffect(() => {
-    if (!map || on) return;
+    if (!map || on || tracked) return;
     (map.getSource(SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData({
       type: "FeatureCollection",
       features: [],
     });
     map.getContainer().classList.remove("is-live-location");
-  }, [map, on]);
+  }, [map, on, tracked]);
 
   // --- follow me -------------------------------------------------------------------------------
   useEffect(() => {
@@ -170,13 +184,14 @@ export default function LiveLocation({ map, onPosition }: Props) {
         aria-pressed={follow}
         title="Keep the map centred on you"
         onClick={() => {
-          if (!on) setOn(true);
+          if (!on && !tracked) setOn(true);
           setFollow((value) => !value);
         }}
       >
         <span aria-hidden="true">➤</span>
         <span className="live-label">Follow me</span>
       </button>
+      {children}
       {problem && (
         <div className="live-problem" role="status">
           {problem}

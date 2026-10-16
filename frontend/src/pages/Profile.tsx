@@ -7,6 +7,7 @@
  *   Saved trails      saved from the trail panel's "Save trail"
  *   Waypoints         TM05-80
  *   Overnight plans   TM05-81
+ *   Hikes             TM05-111: recorded hikes, with their route and GPX
  *
  * Clicking an item goes to the map with an open request (profile/openRequest.ts): the map
  * flies there and opens the item's panel, whatever layers are on.
@@ -31,13 +32,17 @@ import { useSession } from "../session";
 import { miles } from "../trails/format";
 import { listWaypoints, type Waypoint } from "../waypoints/api";
 import { kindStyle } from "../waypoints/kinds";
+import { listHikes, type HikeSummary } from "../tracking/api";
+import { SavedHikeRow } from "../tracking/SavedHikes";
 import "../profile/profile.css";
+import "../tracking/tracking.css";
 
 const TABS = [
   { id: "campsites", label: "Saved campsites" },
   { id: "trails", label: "Saved trails" },
   { id: "waypoints", label: "Waypoints" },
   { id: "plans", label: "Overnight plans" },
+  { id: "hikes", label: "Hikes" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
@@ -70,6 +75,7 @@ export default function Profile() {
           trails: () => listSavedTrails(session),
           waypoints: () => listWaypoints(session),
           plans: () => listPlans(session),
+          hikes: () => listHikes(session),
         }
       : null,
   );
@@ -77,6 +83,7 @@ export default function Profile() {
   const [trails, setTrails] = useList<SavedTrail>(loaders?.trails ?? null);
   const [waypoints] = useList<Waypoint>(loaders?.waypoints ?? null);
   const [plans] = useList<PlanSummary>(loaders?.plans ?? null);
+  const [hikes, setHikes] = useList<HikeSummary>(loaders?.hikes ?? null);
   const names = useDisplayNames(campsites.status === "ready" ? campsites.items : []);
 
   if (!session) return <Navigate to="/login" replace />;
@@ -89,6 +96,7 @@ export default function Profile() {
     trails: trails.status === "ready" ? trails.items.length : null,
     waypoints: waypoints.status === "ready" ? waypoints.items.length : null,
     plans: plans.status === "ready" ? plans.items.length : null,
+    hikes: hikes.status === "ready" ? hikes.items.length : null,
   };
 
   return (
@@ -206,6 +214,25 @@ export default function Profile() {
                 title={plan.name}
                 meta={`${plan.trail_name} · ${nights(plan.nights ?? 0)}`}
                 onOpen={() => open(planRequest(plan))}
+              />
+            )}
+          />
+        )}
+        {tab === "hikes" && (
+          <ItemList
+            state={hikes}
+            empty={
+              <>
+                No hikes yet. Choose <b>Start hike</b> in a trail's panel, or <b>Track</b> on the{" "}
+                <Link to="/discover">map</Link>, then <b>Stop</b> and <b>Save</b>.
+              </>
+            }
+            render={(hike) => (
+              <SavedHikeRow
+                key={hike.id}
+                hike={hike}
+                session={session}
+                onDeleted={(id) => hikes.status === "ready" && setHikes(hikes.items.filter((h) => h.id !== id))}
               />
             )}
           />

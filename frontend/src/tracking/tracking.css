@@ -1,0 +1,220 @@
+/* Hike tracking (TM05-111). Tokens from theme.css. */
+
+/* Desktop: a small panel bottom left, above the location buttons. */
+.hike-panel {
+  top: auto;
+  bottom: calc(var(--space-md) + var(--live-controls-lift) + var(--hike-panel-lift));
+  left: calc(var(--space-md) + env(safe-area-inset-left));
+  z-index: 3;
+  width: var(--hike-panel-width);
+  max-height: calc(100% - var(--space-6xl));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* A phone has one sheet at a time: while a hike is on, the hike's sheet replaces the
+ * trail panel's (which has the same trail's essentials in it). */
+@media (max-width: 640px) {
+  .app.is-hiking .trail-panel.sheet {
+    display: none;
+  }
+}
+
+.hike-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.hike-title {
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.hike-simulated {
+  margin-left: var(--space-xs);
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--hike-simulated);
+  border-radius: var(--radius-sm);
+  color: var(--hike-simulated);
+}
+
+.hike-status {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.hike-status.is-running {
+  color: var(--hike-track);
+}
+
+.hike-status.is-halted,
+.hike-status.is-paused {
+  color: var(--accent);
+}
+
+.hike-glance,
+.hike-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-xs) var(--space-sm);
+  margin: 0;
+}
+
+.hike-stat dt {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+.hike-stat dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.hike-glance .hike-stat dd {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.hike-trail p {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.hike-basis {
+  color: var(--text-tertiary);
+}
+
+.hike-ahead {
+  margin: var(--space-xs) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hike-ahead li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 2px 0;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.hike-ahead li.is-candidate span:first-child {
+  font-style: italic;
+}
+
+.hike-ahead-mile {
+  font-family: var(--font-mono);
+}
+
+.hike-warn {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.hike-note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.hike-note.is-info,
+.hike-note.is-phone {
+  color: var(--text-secondary);
+}
+
+.hike-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.hike-stop {
+  border-color: var(--danger);
+}
+
+.hike-finish {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.hike-name {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.hike-name input {
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-md);
+}
+
+.hike-start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.hike-saved {
+  bottom: calc(var(--space-xl) * 6);
+}
+
+/* Profile -> Hikes */
+.profile-hike {
+  flex-wrap: wrap;
+}
+
+.profile-hike-detail {
+  display: flex;
+  flex-basis: 100%;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0 var(--space-md);
+}
+
+.profile-hike-route {
+  width: 100%;
+  max-width: var(--hike-route-width);
+  aspect-ratio: 280 / 160;
+  background: var(--bg-raised);
+  border-radius: var(--radius-md);
+}
+
+.profile-hike-route polyline {
+  fill: none;
+  stroke: var(--hike-track);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

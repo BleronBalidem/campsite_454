@@ -59,6 +59,8 @@ interface Props {
   /** TM05-101: open a connecting trail; hover shows its junctions on the map. */
   onConnection?: (connection: Connection) => void;
   onConnectionHover?: (connection: Connection | null) => void;
+  /** TM05-111: Start hike, under the header once the trail has loaded. */
+  hike?: ReactNode;
 }
 
 export interface StopChoice {
@@ -104,6 +106,7 @@ export default function TrailPanel({
   onConnection,
   onConnectionHover,
   liveMile,
+  hike,
 }: Props) {
   const name = state.status === "ready" ? state.detail.name : state.name;
 
@@ -144,6 +147,7 @@ export default function TrailPanel({
         </div>
       )}
       {state.status === "error" && <div className="trail-status is-error">{state.message}</div>}
+      {state.status === "ready" && hike}
       {state.status === "ready" && (
         <Ready
           detail={state.detail}

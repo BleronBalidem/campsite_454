@@ -8,7 +8,7 @@
  * the header can sign out from any route and this page still sees it.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as maplibregl from "maplibre-gl";
 // No stylesheet imports here. maplibre-gl.css is imported in main.tsx and App.css in
@@ -63,6 +63,9 @@ import type { FeatureCollection as GeoJsonFeatureCollection } from "geojson";
 import { addContourLayers, setContourBasemap, setContoursVisible } from "../map/contours";
 import StartLocation from "../location/StartLocation";
 import LiveLocation, { type LivePosition } from "../location/LiveLocation";
+import HikePanel from "../tracking/HikePanel";
+import { TrackButton } from "../tracking/StartHike";
+import { useHike } from "../tracking/useHike";
 import {
   addSlopeLayer,
   defaultSlopeOpacity,
@@ -307,6 +310,18 @@ export default function Discover() {
   // TM05-103: the live GPS position, for "mi X.X along <trail>" in the trail panel.
   const [userPosition, setUserPosition] = useState<LivePosition | null>(null);
 
+  // TM05-111: the hike being recorded, if any. While there is one, its position is the
+  // one the dot, the follow camera and the trail panel's mile use.
+  const hike = useHike(session);
+  // One object per fix, not per render: the follow camera moves whenever it changes.
+  const lastFix = hike.recording?.last ?? null;
+  const lastAccuracyM = hike.recording?.lastAccuracyM ?? 0;
+  const hikePosition = useMemo<LivePosition | null>(
+    () => (lastFix ? { lon: lastFix.lon, lat: lastFix.lat, accuracyM: lastAccuracyM } : null),
+    [lastFix, lastAccuracyM],
+  );
+  const hiking = hike.recording !== null;
+
   // TM05-100: an item clicked on the Profile page arrives as router state. It is taken
   // once, and the history entry is replaced so a reload does not open it again.
   const location = useLocation();
@@ -483,7 +498,7 @@ export default function Discover() {
   const truncated = LAYERS.filter((layer) => meta[layer.name]?.truncated);
 
   return (
-    <div className="app">
+    <div className={`app${hiking ? " is-hiking" : ""}`}>
       <div ref={mapContainer} className="map" />
 
       <div className="overlay-left">
@@ -559,7 +574,8 @@ export default function Discover() {
 
       <TrailInsight
         map={mapInstance}
-        userPosition={userPosition}
+        userPosition={hikePosition ?? userPosition}
+        hike={{ busy: hiking, onStart: (trail) => hike.start({ mode: "trail", trail }) }}
         openRequest={
           openRequest?.kind === "trail" || openRequest?.kind === "plan" ? openRequest : null
         }
@@ -587,7 +603,18 @@ export default function Discover() {
         }}
       />
       <StartLocation map={mapInstance} onRegion={flyToRegion} />
-      <LiveLocation map={mapInstance} onPosition={setUserPosition} />
+      <LiveLocation map={mapInstance} onPosition={setUserPosition} tracked={hike.recording?.status === "stopped" ? null : hikePosition}>
+        <TrackButton busy={hiking} onStart={() => hike.start({ mode: "free" })} />
+      </LiveLocation>
+      <HikePanel map={mapInstance} hike={hike} signedIn={Boolean(session)} />
+      {hike.saved && !hiking && (
+        <div className="banner hike-saved" role="status">
+          Saved “{hike.saved.name}”. It's in <Link to="/profile">Profile → Hikes</Link>.{" "}
+          <button type="button" className="link-button" onClick={hike.dismissSaved}>
+            Dismiss
+          </button>
+        </div>
+      )}
       <SatelliteLayers map={mapInstance} basemap={basemap} terrain={terrain} />
       <BasemapToggle value={basemap} onChange={setBasemap} />
     </div>
