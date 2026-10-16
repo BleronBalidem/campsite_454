@@ -101,6 +101,93 @@ In **Profile → Hikes**, each hike lists its date, distance, time and gain. Ope
 - **Download GPX.** GPX 1.1 with one `<trkseg>` per segment and a `<time>` on every point, validated against the schema in the tests.
 - **Delete.**
 
+## The simulated walk
+
+The simulated walk is for testing and demos away from the trail. It is offered only:
+
+- in a dev build (`npm run dev`, `make dev`, `make dev-phone`), or
+- in any build with **`?demo=1`** in the URL. The flag is remembered for the tab, in sessionStorage.
+
+There are two ways to start one:
+
+- **Trail panel: Simulate walk**, with a speed of 1×, 10× or 60×. It walks the open trail from its start to its end.
+- **Location buttons: Simulate.** It walks a 250 m-radius loop around the map centre at 10×, with a 90-second stop halfway round.
+
+While it runs:
+
+- The display says **Simulated**, and has 1× / 10× / 60× buttons to change speed live.
+- Saved simulated hikes keep the label in Profile → Hikes, and say "(simulated walk)" in the GPX description.
+
+**It uses the same code path as GPS.** The simulation is only a `PositionFeed` (`tracking/simulate.ts`), the same interface as the GPS feed (`tracking/feed.ts`). Its fixes go through the same accuracy filter, terrain elevation, `addFix` and stats, and nothing downstream knows they are not real.
+
+The trail walk is built to exercise everything:
+
+- **Pace.** It walks at 1.3 m/s (about 2.9 mph, 20:38 /mi).
+- **Jitter.** There are up to 4 m of repeatable jitter on every fix, reported at ±6 m accuracy.
+- **A stop.** It stops for 3 minutes at 35% of the trail, so moving time and stop detection show.
+- **A detour.** It goes 150 m off the trail and back at 60%, so the off-trail warning shows.
+
+At the end it stands still, and the display says it has reached the end.
+
+**Speed.** Speed changes the simulated clock: at 60× one real second is one simulated minute, and the hike's times are simulated times. Fixes are 1 simulated second apart at 1× and 5 seconds apart at 10× and 60×, sent in a batch each real second. A fast simulation still traces the trail's bends and has fixes inside the stop and the detour.
+
+A reload pauses a simulation. **Resume** carries it on from the last recorded position, on the same clock.
+
+## Verification: Van Hoevenberg Trail at 60× (2026-10-16, headless Chrome, 390 × 844, mobile, touch)
+
+The steps:
+
+1. Opened Van Hoevenberg Trail (relation 6619234, a 7.1 mi stitched line).
+2. Ran "Find campsites along this trail", which found 8 mapped campsites and 3 potential spots.
+3. Chose **Simulate walk** at 60×.
+
+The hike sheet replaced the trail panel's sheet. The panel polled every 0.5 s:
+
+| Real s | Elapsed | Trail | Distance | Moving | Pace | Elevation | Gain | Next places to camp |
+|---|---|---|---|---|---|---|---|---|
+| 10 | 0:10:00 | mi 0.5 of 7.1 | 0.48 mi | 0:10:00 | 20:44 /mi | 2,119 ft | +15 ft | Potential spot 0.3 mi; potential spot 1.2 mi; Phelps Brook Lean-to 1.3 mi |
+| 30 | 0:30:00 | mi 1.5 of 7.1 | 1.45 mi | 0:30:00 | 20:39 /mi | 2,289 ft | +191 ft | Potential spot 0.3 mi; Phelps Brook Lean-to 0.4 mi; Marcy Dam #5 Lean-to 0.7 mi |
+| 40 | 0:40:00 | mi 1.9 of 7.1 | 1.94 mi | 0:40:00 | 20:35 /mi | 2,326 ft | +244 ft | Marcy Dam #5 Lean-to 0.2 mi; Ed Hudowalski Lean-to 0.2 mi; potential spot 0.4 mi |
+| 61 | 1:00:00 | mi 2.8 of 7.1 | 2.76 mi | 0:56:50 | 20:34 /mi | 2,529 ft | +459 ft | Campsite near Van Hoevenberg Trail 0.3 mi (two) |
+| 91 | 1:30:00 | mi 4.2 of 7.1 | 4.24 mi | 1:26:50 | 20:30 /mi | 3,541 ft | +1,468 ft | none ahead |
+| 121 | 2:00:00 | mi 5.5 of 7.1 | 5.69 mi | 1:56:50 | 20:32 /mi | 4,229 ft | +2,200 ft | none ahead |
+| 151 | 2:31:00 | mi 7.0 of 7.1 | 7.20 mi | 2:27:50 | 20:32 /mi | 5,253 ft | +3,247 ft | none ahead |
+
+**Events:**
+
+- **The stop.** "Not moving" appeared at 0:52:00, mi 2.5, and "Recording" returned at 0:55:00. Moving time had dropped behind elapsed by 3:10 (the 3-minute stop).
+- **The detour.** "Off trail: 130 m from Van Hoevenberg Trail." appeared at 1:32:00, mi 4.2, and cleared at 1:34:00.
+- **The end.** It was reached after 154 real seconds.
+
+**At Stop:**
+
+- **Elapsed** 2:34:18; **moving** 2:29:05.
+- **Distance** 7.26 mi. That is the 7.07 mi trail plus the 0.19 mi detour.
+- **Pace** 20:31 /mi.
+- **Elevation** 5,330 ft. Marcy's summit is 5,344 ft.
+- **Gain** +3,318 ft. The trail profile's own gain is 3,305 ft (1,007.4 m).
+- **Stops** 2: the planned stop, and standing at the end.
+
+**Save** showed "Saved 'Hike on Van Hoevenberg Trail'". Profile → Hikes listed "Oct 16, 2026 · 7.26 mi · 2 h 35 min · +3,318 ft", labelled Simulated, with the route drawn as one segment.
+
+**Also checked:**
+
+- **The free-mode loop at 10×.** Switching to 60× live sped it up.
+- **A reload mid-simulation.** It came back **Paused** and stayed paused. **Resume** carried on from the same place, with the loop's halfway stop detected.
+- **Stop, then Discard,** cleared it.
+
+**Screenshots** are in artifacts/tm05-111/:
+
+- 01: the trail panel
+- 02: the stop
+- 03: the off-trail warning
+- 04: the end
+- 05: Stop
+- 06: Profile → Hikes
+- 07: the free-mode loop, resumed
+
+**Limitation measured.** A reload loses up to the last second of real time, because the store is written at most once a second. At 60× that was 61 simulated seconds.
+
 ## Tests
 
 - **`frontend/tests/tracking.test.ts`** covers:
@@ -115,6 +202,12 @@ In **Profile → Hikes**, each hike lists its date, distance, time and gain. Ope
   - the store: reload, clear, and only offering a hike back to the account that started it
   - the DEM pixel arithmetic
   - the route drawing
+- **`frontend/tests/simulate.test.ts`** covers:
+  - the trail walk's plan (the stop, the detour, the end) and the loop
+  - repeatable jitter
+  - the simulated feed's mile progression at 1×, 10× and 60×, through the tracker and trail progress
+  - pause and speed changes
+  - a whole 60× walk raising the off-trail warning, detecting the stop and reaching the end
 - **`tests/test_hikes.py`** covers:
   - save, list, read and delete
   - free hikes keeping no trail

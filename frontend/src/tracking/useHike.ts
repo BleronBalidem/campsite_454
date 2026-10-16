@@ -12,10 +12,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "../auth";
 import { elevationAt } from "./dem";
-import { gpsFeed, type PositionFeed } from "./feed";
+import { WAITING_FOR_GPS, gpsFeed, type PositionFeed } from "./feed";
 import { directionFrom, trailLine, type TrailSnapshot } from "./progress";
 import { ActiveHikeStore, browserKeyValue } from "./store";
 import { saveHike, type HikeDetail } from "./api";
+import type { SimSpeed, SimulatedFeed } from "./simulate";
+import { simulationFeed } from "./simulation";
 import {
   addFix,
   markGap,
@@ -28,19 +30,26 @@ import {
   hikeStats,
   type Fix,
   type Recording,
+  type SimulationSettings,
 } from "./track";
 
 const PERSIST_MS = 1000;
 const TICK_MS = 1000;
 
-/** Makes the feed for a hike: GPS, or (simulate.ts) a simulated walk. */
-export type FeedFactory = (recording: Recording) => PositionFeed;
+/** The feed for a hike: its simulation if it is one, otherwise GPS. */
+function feedFor(recording: Recording): PositionFeed {
+  if (recording.simulation) {
+    const simulated = simulationFeed(recording, recording.simulation.speed as SimSpeed);
+    if (simulated) return simulated;
+  }
+  return gpsFeed();
+}
 
 export interface StartOptions {
   mode: "trail" | "free";
   trail?: TrailSnapshot | null;
-  /** Omitted for real GPS. */
-  feed?: FeedFactory;
+  /** A simulated walk (simulate.ts); omitted for real GPS. */
+  simulation?: SimulationSettings;
 }
 
 export interface Hike {
@@ -53,8 +62,10 @@ export interface Hike {
   dismissSaved(): void;
   start(options: StartOptions): void;
   pause(): void;
-  resume(feed?: FeedFactory): void;
+  resume(): void;
   stop(): void;
+  /** A simulation's speed, live. */
+  setSimSpeed(speed: SimSpeed): void;
   save(name: string): Promise<HikeDetail>;
   discard(): Promise<void>;
 }
@@ -80,7 +91,7 @@ export function useHike(session: Session | null): Hike {
         }
         return next;
       });
-      setProblem(null);
+      setProblem((current) => (current === WAITING_FOR_GPS ? null : current));
     });
   }, []);
 
@@ -174,18 +185,19 @@ export function useHike(session: Session | null): Hike {
   const clock = () => feed.current?.now() ?? Date.now();
 
   const start = useCallback(
-    ({ mode, trail = null, feed: makeFeed }: StartOptions) => {
+    ({ mode, trail = null, simulation }: StartOptions) => {
       setProblem(null);
       setSaved(null);
       const draft = startRecording({
         id: crypto.randomUUID(),
         owner: username,
         mode,
-        simulated: Boolean(makeFeed),
+        simulated: Boolean(simulation),
+        simulation,
         trail,
         now: Date.now(),
       });
-      const source = makeFeed ? makeFeed(draft) : gpsFeed();
+      const source = feedFor(draft);
       const recording = { ...draft, startedAt: source.now(), runningSince: source.now() };
       setRecording(recording);
       setNow(source.now());
@@ -202,22 +214,28 @@ export function useHike(session: Session | null): Hike {
     setNow(at);
   }, []);
 
-  const resume = useCallback(
-    (makeFeed?: FeedFactory) => {
-      if (!recording || recording.status !== "paused") return;
-      setProblem(null);
-      // A feed that survived the pause carries on; after a reload there is none, so a new
-      // one is made (GPS, or the simulation picking up where it was).
-      const source = feed.current ?? (makeFeed ?? (() => gpsFeed()))(recording);
-      setRecording(resumeRecording(recording, source.now()));
-      begin(source);
-    },
-    [recording, begin],
-  );
+  const resume = useCallback(() => {
+    if (!recording || recording.status !== "paused") return;
+    setProblem(null);
+    // A feed that survived the pause carries on; after a reload there is none, so a new
+    // one is made (GPS, or the simulation picking up where it was).
+    const source = feed.current ?? feedFor(recording);
+    setRecording(resumeRecording(recording, source.now()));
+    begin(source);
+  }, [recording, begin]);
+
+  const setSimSpeed = useCallback((speed: SimSpeed) => {
+    const source = feed.current as SimulatedFeed | null;
+    if (source?.simulated) source.setSpeed(speed);
+    setRecording((current) =>
+      current?.simulation ? { ...current, simulation: { ...current.simulation, speed } } : current,
+    );
+  }, []);
 
   const stop = useCallback(() => {
     const at = clock();
     feed.current?.stop();
+    setProblem(null);
     setRecording((current) => (current ? stopRecording(current, at) : current));
     setNow(at);
   }, []);
@@ -246,5 +264,5 @@ export function useHike(session: Session | null): Hike {
 
   const shownNow = recording?.status === "stopped" ? (recording.endedAt ?? now) : now;
   const dismissSaved = useCallback(() => setSaved(null), []);
-  return { recording, now: shownNow, problem, saved, dismissSaved, start, pause, resume, stop, save, discard };
+  return { recording, now: shownNow, problem, saved, dismissSaved, start, pause, resume, stop, setSimSpeed, save, discard };
 }

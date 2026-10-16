@@ -59,6 +59,7 @@ import { useSession } from "../session";
 import { StartHike } from "../tracking/StartHike";
 import { trailSnapshot } from "../tracking/snapshot";
 import type { TrailSnapshot } from "../tracking/progress";
+import type { SimSpeed } from "../tracking/simulate";
 import "./trails.css";
 
 /** Below this zoom a route list would be most of a region; skip the request. */
@@ -85,7 +86,12 @@ interface Props {
   /** TM05-103: the hiker's live position, for "mi X.X along <trail>". */
   userPosition?: { lon: number; lat: number } | null;
   /** TM05-111: start a hike along the open trail. */
-  hike?: { busy: boolean; onStart: (trail: TrailSnapshot) => void };
+  hike?: {
+    busy: boolean;
+    onStart: (trail: TrailSnapshot) => void;
+    /** Dev builds and ?demo=1 only: a simulated walk of the trail. */
+    onSimulate?: (trail: TrailSnapshot, speed: SimSpeed) => void;
+  };
 }
 
 export default function TrailInsight({
@@ -546,7 +552,15 @@ export default function TrailInsight({
       onConnectionHover={(connection) => setHoveredJunctions(connection?.junctions ?? null)}
       hike={
         hike && readyDetail ? (
-          <StartHike busy={hike.busy} onStart={() => hike.onStart(trailSnapshot(readyDetail, candidates))} />
+          <StartHike
+            busy={hike.busy}
+            onStart={() => hike.onStart(trailSnapshot(readyDetail, candidates))}
+            onSimulate={
+              hike.onSimulate
+                ? (speed) => hike.onSimulate!(trailSnapshot(readyDetail, candidates), speed)
+                : undefined
+            }
+          />
         ) : null
       }
       onCandidate={(candidate) => {

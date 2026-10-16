@@ -10,6 +10,9 @@
 
 import type { Fix } from "./track";
 
+/** The one passing problem: it clears itself with the next fix. */
+export const WAITING_FOR_GPS = "Waiting for a GPS fix…";
+
 export interface PositionFeed {
   readonly simulated: boolean;
   /** The feed's own time, unix ms. */
@@ -36,7 +39,7 @@ export function gpsFeed(): PositionFeed {
         (error) =>
           error.code === 1
             ? onError("Location is blocked for this site. Allow it in the browser's settings.", true)
-            : onError("Waiting for a GPS fix…", false),
+            : onError(WAITING_FOR_GPS, false),
         { enableHighAccuracy: true, maximumAge: 0, timeout: 30_000 },
       );
     },

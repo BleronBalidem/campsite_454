@@ -17,6 +17,7 @@ import { duration, miles } from "../trails/format";
 import { TRACKING } from "./config";
 import { clock, defaultHikeName, feetOrDash, gainFeet, miles2, pace } from "./format";
 import { farFromTrailNote, mileOf, trailLine, trailProgress } from "./progress";
+import { SPEEDS } from "./simulate";
 import { hikeStats, trackLines } from "./track";
 import type { Hike } from "./useHike";
 import { useWakeLock } from "./useWakeLock";
@@ -29,11 +30,9 @@ interface Props {
   map: maplibregl.Map | null;
   hike: Hike;
   signedIn: boolean;
-  /** Resume after a reload: the right feed for this hike (GPS, or the simulation). */
-  onResume?: () => void;
 }
 
-export default function HikePanel({ map, hike, signedIn, onResume }: Props) {
+export default function HikePanel({ map, hike, signedIn }: Props) {
   const { recording, now } = hike;
   useBreadcrumb(map, recording ? trackLines(recording) : null);
   const wakeLock = useWakeLock(recording?.status === "running");
@@ -84,7 +83,7 @@ export default function HikePanel({ map, hike, signedIn, onResume }: Props) {
               Pause
             </button>
           ) : (
-            <button type="button" className="trail-3d-button is-active" onClick={() => (onResume ? onResume() : hike.resume())}>
+            <button type="button" className="trail-3d-button is-active" onClick={hike.resume}>
               Resume
             </button>
           )}
@@ -96,7 +95,24 @@ export default function HikePanel({ map, hike, signedIn, onResume }: Props) {
         <Finish hike={hike} signedIn={signedIn} defaultName={defaultHikeName(recording.trail?.name ?? null, recording.startedAt)} />
       )}
 
-      {status === "running" && !recording.simulated && (
+      {recording.simulation && status !== "stopped" && (
+        <div className="hike-speed" role="group" aria-label="Simulation speed">
+          <span className="hike-note">Simulated walk</span>
+          {SPEEDS.map((speed) => (
+            <button
+              key={speed}
+              type="button"
+              className={`trail-3d-button${recording.simulation?.speed === speed ? " is-active" : ""}`}
+              aria-pressed={recording.simulation?.speed === speed}
+              onClick={() => hike.setSimSpeed(speed)}
+            >
+              {speed}×
+            </button>
+          ))}
+        </div>
+      )}
+
+      {status === "running" && (
         <p className="hike-note is-phone">
           Keep the screen on. iPhone web apps can't track with the screen locked.
           {(wakeLock === "unavailable" || wakeLock === "refused") &&

@@ -66,6 +66,7 @@ import LiveLocation, { type LivePosition } from "../location/LiveLocation";
 import HikePanel from "../tracking/HikePanel";
 import { TrackButton } from "../tracking/StartHike";
 import { useHike } from "../tracking/useHike";
+import { canSimulate } from "../tracking/demo";
 import {
   addSlopeLayer,
   defaultSlopeOpacity,
@@ -321,6 +322,8 @@ export default function Discover() {
     [lastFix, lastAccuracyM],
   );
   const hiking = hike.recording !== null;
+  // The simulated walk (TM05-111): dev builds, or ?demo=1.
+  const [simulate] = useState(canSimulate);
 
   // TM05-100: an item clicked on the Profile page arrives as router state. It is taken
   // once, and the history entry is replaced so a reload does not open it again.
@@ -575,7 +578,14 @@ export default function Discover() {
       <TrailInsight
         map={mapInstance}
         userPosition={hikePosition ?? userPosition}
-        hike={{ busy: hiking, onStart: (trail) => hike.start({ mode: "trail", trail }) }}
+        hike={{
+          busy: hiking,
+          onStart: (trail) => hike.start({ mode: "trail", trail }),
+          onSimulate: simulate
+            ? (trail, speed) =>
+                hike.start({ mode: "trail", trail, simulation: { kind: "trail", speed, center: null } })
+            : undefined,
+        }}
         openRequest={
           openRequest?.kind === "trail" || openRequest?.kind === "plan" ? openRequest : null
         }
@@ -604,7 +614,18 @@ export default function Discover() {
       />
       <StartLocation map={mapInstance} onRegion={flyToRegion} />
       <LiveLocation map={mapInstance} onPosition={setUserPosition} tracked={hike.recording?.status === "stopped" ? null : hikePosition}>
-        <TrackButton busy={hiking} onStart={() => hike.start({ mode: "free" })} />
+        <TrackButton
+          busy={hiking}
+          onStart={() => hike.start({ mode: "free" })}
+          onSimulate={
+            simulate && mapInstance
+              ? (speed) => {
+                  const { lng, lat } = mapInstance.getCenter();
+                  hike.start({ mode: "free", simulation: { kind: "loop", speed, center: [lng, lat] } });
+                }
+              : undefined
+          }
+        />
       </LiveLocation>
       <HikePanel map={mapInstance} hike={hike} signedIn={Boolean(session)} />
       {hike.saved && !hiking && (

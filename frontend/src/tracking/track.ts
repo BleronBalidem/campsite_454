@@ -48,6 +48,14 @@ export interface Segment {
 }
 
 export type HikeMode = "trail" | "free";
+
+/** A simulated walk's settings (simulate.ts), kept so a reload can carry it on. */
+export interface SimulationSettings {
+  kind: "trail" | "loop";
+  speed: number;
+  /** The loop's centre, for a free-mode simulation. */
+  center: [number, number] | null;
+}
 export type HikeStatus = "running" | "paused" | "stopped";
 
 export interface Recording {
@@ -56,6 +64,7 @@ export interface Recording {
   owner: string | null;
   mode: HikeMode;
   simulated: boolean;
+  simulation: SimulationSettings | null;
   /** Trail mode: the trail as it was when the hike started, so a reload needs no fetch. */
   trail: TrailSnapshot | null;
   /** Trail mode: 1 when walking the trail start to end, -1 end to start; null until the
@@ -82,11 +91,13 @@ export function startRecording(options: {
   owner: string | null;
   mode: HikeMode;
   simulated: boolean;
+  simulation?: SimulationSettings | null;
   trail: TrailSnapshot | null;
   now: number;
 }): Recording {
   return {
     ...options,
+    simulation: options.simulation ?? null,
     trail: options.mode === "trail" ? options.trail : null,
     direction: null,
     status: "running",
