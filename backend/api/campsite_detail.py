@@ -103,12 +103,13 @@ def facts_of(site: Campsite) -> CampsiteFacts | None:
         return None
 
 
-def _score(
+def stored_score(
     site: Campsite, facts: CampsiteFacts | None, config: ScoringConfig | None = None
 ) -> tuple[str, dict | None]:
     """(score_status, contract-1 result or None). The one place a stored score is made:
-    the map's campsite layer scores through it too (TM05-86), so the two never disagree.
-    `config` is the signed-in user's weights (TM05-46); None scores with the defaults."""
+    the map's campsite layer (TM05-86) and a route's campsite list (TM05-72) score through
+    it too, so the three never disagree. `config` is the signed-in user's weights
+    (TM05-46); None scores with the defaults."""
     if facts is None:
         return PENDING, None
     try:
@@ -122,7 +123,7 @@ def _score(
 def score_payload(site: Campsite, config: ScoringConfig | None = None) -> dict:
     """`score` and `score_status` alone, for lists of campsites: the map's features
     (TM05-86) and the saved list (TM05-87). Select the site's facts with it."""
-    status, result = _score(site, facts_of(site), config)
+    status, result = stored_score(site, facts_of(site), config)
     return {"score": result["score"] if result else None, "score_status": status}
 
 
@@ -147,7 +148,7 @@ def campsite_detail_view(request, source_id: str):
     facts = facts_of(site)
 
     source_name = (site.name or "").strip()
-    score_status, result = _score(site, facts, config_for(request.user))
+    score_status, result = stored_score(site, facts, config_for(request.user))
     return Response(
         {
             "id": site.source_id,

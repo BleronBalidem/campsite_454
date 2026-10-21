@@ -504,7 +504,7 @@ function AlongList({
                 {row.site.score !== null && (
                   <span
                     className="trail-score"
-                    title={row.site.score_breakdown.caps[0]?.reason ?? "Campsite score, 0-100"}
+                    title={row.site.score_breakdown?.caps[0]?.reason ?? "Campsite score, 0-100"}
                   >
                     {row.site.score}
                   </span>

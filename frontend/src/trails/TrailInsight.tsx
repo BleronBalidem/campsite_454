@@ -463,7 +463,7 @@ export default function TrailInsight({
           lat: site.lat,
           name: site.display_name ?? site.name,
           score: site.score,
-          breakdown: site.score_breakdown,
+          breakdown: site.score_breakdown ?? undefined,
         });
       }
       else map?.flyTo({ center: [site.lon, site.lat], zoom: Math.max(map.getZoom(), 14) });

@@ -16,6 +16,7 @@ from rest_framework.test import APIClient
 
 from analysis.analyses import elevation
 from analysis.base import AnalysisError
+from enrichment.facts import enrich
 from geodata.models import Campsite, TrailRoute
 
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
@@ -159,14 +160,48 @@ def test_campsite_distance_is_configurable_and_capped(client):
 
 def test_each_campsite_carries_its_score_and_breakdown(client):
     make_route()
-    make_site("site", along=1000, off=60)
+    enrich(make_site("site", along=1000, off=60))
     item = client.get("/api/routes/1/").json()["campsites"]["items"][0]
 
+    assert item["score_status"] == "scored"
     assert isinstance(item["score"], int)
     assert item["score_breakdown"]["contract"] == 1
     assert item["score"] == item["score_breakdown"]["score"]
     keys = [f["key"] for f in item["score_breakdown"]["factors"]]
     assert "water" in keys and "weather" in keys
+
+
+def listed_and_panel(client, source_id):
+    [item] = [
+        i for i in client.get("/api/routes/1/").json()["campsites"]["items"] if i["id"] == source_id
+    ]
+    panel = client.get(f"/api/campsites/{source_id}/detail/").json()
+    return item, panel
+
+
+def test_an_unenriched_site_scores_the_same_in_the_list_and_the_panel(client):
+    # TM05-72: the list used to score live, so an unenriched site got a number (and a
+    # marker colour) while its panel said pending. Both now score from stored values.
+    make_route()
+    make_site("raw", along=1000, off=60)
+
+    item, panel = listed_and_panel(client, "raw")
+
+    assert (item["score"], item["score_status"]) == (panel["score"], panel["score_status"])
+    assert (item["score"], item["score_status"]) == (None, "pending")
+    assert item["score_breakdown"] is None
+    assert item["legality"] == panel["legality"]
+
+
+def test_an_enriched_site_scores_the_same_in_the_list_and_the_panel(client):
+    make_route()
+    enrich(make_site("site", along=1000, off=60))
+
+    item, panel = listed_and_panel(client, "site")
+
+    assert item["score_status"] == panel["score_status"] == "scored"
+    assert item["score"] == panel["score"]
+    assert item["score_breakdown"] == panel["score_breakdown"]
 
 
 def test_detail_survives_elevation_being_unavailable(client, monkeypatch):

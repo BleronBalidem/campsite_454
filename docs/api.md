@@ -485,8 +485,8 @@ score that cannot be computed never makes the request fail. A nonexistent id is 
   data as `no_data`, which means "measured, found nothing", and the result would be a
   misleadingly low score.
 - **Weather is often `not_available` here.** The forecast cache lasts one hour (docs/scoring.md), so
-  weather is scored only when a recent request (for example a route detail) has already
-  fetched the forecast for that grid cell. When it is `not_available`, the weights are
+  weather is scored only when the forecast for that grid cell was already fetched in the
+  last hour. When it is `not_available`, the weights are
   renormalised and the score is still valid.
 - **Slope** is read from the `site_terrain` cache that `enrich_campsites` fills (kept a
   year), so an enriched site normally has it.
@@ -586,7 +586,8 @@ Unknown `osm_id` → 404.
       {"id": "way/1305981156", "source": "osm", "name": "Marcy Dam Backcountry Campsites",
        "site_type": "primitive", "lon": -73.951989, "lat": 44.158017,
        "distance_along_m": 3773.1, "distance_from_route_m": 83.6,
-       "score": 69, "score_breakdown": { "...": "a contract-1 score, docs/scoring.md" }}
+       "score": 69, "score_status": "scored",
+       "score_breakdown": { "...": "a contract-1 score, docs/scoring.md" }}
     ]
   }
 }
@@ -621,8 +622,11 @@ Unknown `osm_id` → 404.
   perpendicular distance to the nearest route member. Both are metres in EPSG:5070
   (TM05-42), and the search uses the campsite `geom_m` index. At most 100 are returned
   (`truncated`).
-- **`score` / `score_breakdown`** are the scoring engine's contract-1 result. The weather
-  factor makes them change over time: do not cache longer than an hour.
+- **`score` / `score_status` / `score_breakdown`** are exactly the campsite detail's
+  (TM05-72): scored from stored values only, so the trail list, the detail panel and the
+  marker colour never disagree. An unenriched site is `pending`, with `score` and
+  `score_breakdown` null, and no 3DEP or Open-Meteo call is made for the list. The weather
+  factor makes a score change over time: do not cache longer than an hour.
 
 ### Measured (2026-10-02, local Docker PostGIS, median of 5 warm runs)
 
