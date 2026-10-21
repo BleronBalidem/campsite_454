@@ -9,6 +9,8 @@
  *   Overnight plans   TM05-81
  *   Hikes             TM05-111: recorded hikes, with their route and GPX
  *
+ * Above the tabs, "Scoring preferences" (TM05-115) sets the user's factor weights.
+ *
  * Clicking an item goes to the map with an open request (profile/openRequest.ts): the map
  * flies there and opens the item's panel, whatever layers are on.
  */
@@ -34,6 +36,8 @@ import { listWaypoints, type Waypoint } from "../waypoints/api";
 import { kindStyle } from "../waypoints/kinds";
 import { listHikes, type HikeSummary } from "../tracking/api";
 import { SavedHikeRow } from "../tracking/SavedHikes";
+import ScoringPreferences from "../profile/ScoringPreferences";
+import { showPreferences } from "../profile/weights";
 import "../profile/profile.css";
 import "../tracking/tracking.css";
 
@@ -105,6 +109,8 @@ export default function Profile() {
         <h1>{session.username}</h1>
         <p>Your saved places and plans. Choose one to open it on the map.</p>
       </header>
+
+      {showPreferences(session) && <ScoringPreferences session={session} />}
 
       <div className="profile-tabs" role="tablist" aria-label="Your saved things">
         {TABS.map((entry) => (
