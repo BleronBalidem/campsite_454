@@ -21,6 +21,7 @@ Each item is checked in Safari and as a home-screen app.
 | Map controls | Zoom, compass/reset north, basemap switch, Location, Follow me: each is reachable and big enough to tap | | |
 | Safe areas | Nothing under the notch / Dynamic Island or the home bar, in portrait and landscape | | |
 | GPS dot and Follow me | Dot and accuracy circle appear after Allow; Follow me keeps the map on you while walking; dragging the map turns it off (outdoors if possible) | | |
+| Hike tracking (TM05-111) | Start hike / Track; the breadcrumb follows you; wake lock keeps the screen on; Save or Discard at the end; the hike appears under Profile, Hikes | | |
 
 ## Issues found
 
