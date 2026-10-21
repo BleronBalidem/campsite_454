@@ -20,8 +20,19 @@ RUN pip install -r /tmp/requirements.txt
 WORKDIR /app
 COPY backend/ /app/
 
+# collectstatic only imports settings; these placeholders satisfy its required variables
+# and never reach the running container.
+RUN DATABASE_URL=postgis://build@localhost/build SECRET_KEY=build-only DEBUG=False \
+    python manage.py collectstatic --no-input
+
 RUN useradd --create-home --uid 1000 app && chown -R app /app
 USER app
 
+# Render sets PORT (default 10000); 8000 locally. Migrations run on every start because the
+# free tier has no pre-deploy step; on an up-to-date database they are a no-op. Two workers
+# fit the free tier's 512 MB; the timeout covers the slowest on-demand terrain analyses.
+ENV PORT=8000
 EXPOSE 8000
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD python manage.py migrate --no-input \
+ && exec gunicorn config.wsgi:application --bind 0.0.0.0:$PORT \
+      --workers ${WEB_CONCURRENCY:-2} --timeout 120 --access-logfile -
