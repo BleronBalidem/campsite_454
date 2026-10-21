@@ -4,6 +4,7 @@
  */
 
 import { API_BASE_URL } from "../api";
+import { authHeaders, storedSession } from "../auth";
 import type { Legality } from "./legality";
 
 export interface CampsiteFactsPayload {
@@ -45,6 +46,9 @@ export interface CampsiteDetail {
   lon: number;
   lat: number;
   facts: CampsiteFactsPayload | null;
+  /** The score with the caller's weights; fresher than the map feature's (TM05-115). */
+  score?: number | null;
+  score_breakdown?: unknown;
   /** Absent from an older backend; the panel then simply omits the row. */
   confidence?: CampsiteConfidence | null;
   /** The legality verdict shown above the score (TM05-76 follow-up). */
@@ -62,7 +66,8 @@ export function detailUrl(id: string): string {
 export async function fetchCampsiteDetail(id: string, signal?: AbortSignal): Promise<CampsiteDetail> {
   let response: Response;
   try {
-    response = await fetch(detailUrl(id), { signal });
+    // Signed in, the score uses the user's own weights (TM05-46).
+    response = await fetch(detailUrl(id), { signal, headers: authHeaders(storedSession()) });
   } catch (cause) {
     if (signal?.aborted) throw cause;
     throw new CampsiteApiError(`Could not reach the API at ${API_BASE_URL}.`);

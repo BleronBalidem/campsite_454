@@ -10,7 +10,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type * as maplibregl from "maplibre-gl";
 import { CampsiteApiError, fetchCampsiteDetail, type CampsiteDetail as Detail } from "./api";
-import CampsitePanel, { type CampsiteState } from "./CampsitePanel";
+import CampsitePanel, { type CampsiteScore, type CampsiteState } from "./CampsitePanel";
 import SelectedCampsite from "./SelectedCampsite";
 import type { CampsiteSelection } from "./selection";
 import "./campsite.css";
@@ -21,6 +21,17 @@ interface Props {
   selection: CampsiteSelection | null;
   onClose: () => void;
   renderSave: (detail: Detail) => ReactNode;
+}
+
+/**
+ * The detail response's score once it has arrived: it is fetched fresh with the user's
+ * weights (TM05-115), where the selection's may come from a map feature drawn earlier.
+ */
+function panelScore(state: CampsiteState, selection: CampsiteSelection | null): CampsiteScore {
+  if (state.status === "ready" && state.detail.score_breakdown != null) {
+    return { breakdown: state.detail.score_breakdown, total: state.detail.score ?? null };
+  }
+  return { breakdown: selection?.breakdown ?? null, total: selection?.score ?? null };
 }
 
 export default function CampsiteDetail({ map, selection, onClose, renderSave }: Props) {
@@ -67,7 +78,7 @@ export default function CampsiteDetail({ map, selection, onClose, renderSave }: 
     <>
       <CampsitePanel
         state={shown}
-        score={{ breakdown: selection?.breakdown ?? null, total: selection?.score ?? null }}
+        score={panelScore(shown, selection)}
         saveButton={shown.status === "ready" ? renderSave(shown.detail) : null}
         onClose={onClose}
       />

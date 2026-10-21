@@ -4,7 +4,9 @@ on: [push, pull_request]
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, whose GEOS/PROJ put the stitched test route
+    # on the other side of 4,000 m, so test_candidates counts 21 stations against 20.
+    runs-on: ubuntu-24.04
 
     # The test suite talks to a real PostGIS database rather than mocking it, so the
     # spatial columns, GiST indexes, and unique constraints are verified for real.
@@ -72,7 +74,7 @@ jobs:
   # job is the type check as well as the build; there is no standalone typecheck
   # script to call instead. No database, so it runs in parallel with `quality`.
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4
