@@ -17,12 +17,12 @@ from django.contrib.gis.geos import Point
 
 from analysis.analyses.elevation import RouteProfile, stitch
 from analysis.base import AnalysisError
-from api.routes import MAX_WITHIN_M, display_name, facts_of
+from api.campsite_detail import facts_of, stored_score
+from api.routes import MAX_WITHIN_M, display_name
 from geodata.models import METRIC_SRID
 from geodata.route_rating import ALONG, NEAR_START, position_along
 from geodata.route_rating import config as route_config
 from scoring.config import load as load_scoring_config
-from scoring.engine import score_campsite
 from scoring.verdict import PERMITTED, RULES, UNKNOWN, legality_verdict
 
 from .days import day_stats, smoothed_profile
@@ -166,8 +166,12 @@ def build_plan(route, sites) -> dict:
             warning = f"Night {night}, " + CANDIDATE_WARNING.format(label=CANDIDATE_LABEL)
             warnings.append(warning)
         else:
-            result = score_campsite(site, config)
-            legality = legality_verdict(site, facts_of(site), result["legal_status"])
+            # TM05-72: the score the campsite's panel and the trail list show, from stored
+            # values only; an unenriched stop is pending, with no score.
+            facts = facts_of(site)
+            _, scored = stored_score(site, facts, config)
+            result = scored or {"score": None}
+            legality = legality_verdict(site, facts, scored["legal_status"] if scored else None)
             name = display_name(site)
             warning = None
         if warning is None and legality["verdict"] != PERMITTED:

@@ -66,8 +66,10 @@ export interface CampsiteAlong {
   /** TM05-73: past either end of the route there is no honest mile. Optional for older APIs. */
   position?: "along" | "near_start" | "near_end";
   position_label?: string | null;
+  /** TM05-72: scored from stored values, as the detail panel is; null unless "scored". */
   score: number | null;
-  score_breakdown: ScoreSummary;
+  score_status?: "scored" | "pending" | "not_available";
+  score_breakdown: ScoreSummary | null;
 }
 
 /** TM05-82: Shenandoah-rated difficulty, from the profile. Null when there is no profile. */

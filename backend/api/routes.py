@@ -27,6 +27,7 @@ from accounts.weights import config_for
 from analysis.analyses.elevation import RouteProfile, stitch
 from analysis.base import AnalysisError
 from api.bbox import InvalidBbox, parse_bbox
+from api.campsite_detail import facts_of, stored_score
 from api.gpx import CONTENT_TYPE, Waypoint, build_gpx, campsite_waypoints, track_points
 from api.gpx import filename as gpx_filename
 from api.layers import COORDINATE_PRECISION, SimplifyPreserveTopology, envelope
@@ -41,7 +42,6 @@ from geodata.route_rating import difficulty, position_along, route_type
 from planning.queries import as_gpx, waypoints_near
 from scoring.config import ScoringConfig
 from scoring.config import load as load_scoring_config
-from scoring.engine import score_campsite
 from scoring.verdict import legality_verdict
 
 DEFAULT_ROUTE_LIMIT = 200
@@ -139,13 +139,6 @@ def _profile_payload(route):
             "cached": outcome.cached,
         },
     }
-
-
-def facts_of(site: Campsite) -> CampsiteFacts | None:
-    try:
-        return site.facts
-    except CampsiteFacts.DoesNotExist:
-        return None
 
 
 def display_name(site: Campsite) -> dict:
@@ -251,7 +244,10 @@ def route_detail(route: TrailRoute, within: int, scoring: ScoringConfig | None =
     campsites = []
     for site_id, from_route, along, from_line in located:
         site = sites[site_id]
-        result = score_campsite(site, config)
+        facts = facts_of(site)
+        # TM05-72: scored exactly as the detail panel and the map's markers score it, from
+        # stored values only, so an unenriched site is pending here too, not a live score.
+        score_status, result = stored_score(site, facts, config)
         campsites.append(
             {
                 "id": site.source_id,
@@ -266,9 +262,12 @@ def route_detail(route: TrailRoute, within: int, scoring: ScoringConfig | None =
                 "distance_along_m": round(along, 1),
                 "distance_from_route_m": round(from_route, 1),
                 **position_along(along, line_m.length, from_line, along_settings),
-                "score": result["score"],
+                "score": result["score"] if result else None,
+                "score_status": score_status,
                 "score_breakdown": result,
-                "legality": legality_verdict(site, facts_of(site), result["legal_status"]),
+                "legality": legality_verdict(
+                    site, facts, result["legal_status"] if result else None
+                ),
             }
         )
 
