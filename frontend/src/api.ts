@@ -11,6 +11,7 @@
  */
 
 import type { Feature } from "geojson";
+import { authHeaders, storedSession } from "./auth";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -114,6 +115,14 @@ function remember(key: string, value: MapData) {
   }
 }
 
+/**
+ * Forget every cached response. Campsite scores in them depend on the user's weights
+ * (TM05-46), so saving or resetting weights (TM05-115) clears them.
+ */
+export function clearMapDataCache() {
+  cache.clear();
+}
+
 export interface MapDataResult {
   data: MapData;
   cached: boolean;
@@ -149,7 +158,8 @@ export async function fetchMapData(
   const url = `${API_BASE_URL}/api/map-data/?${params}`;
   let response: Response;
   try {
-    response = await fetch(url, { signal });
+    // The token, when signed in, scores campsites with the user's own weights (TM05-46).
+    response = await fetch(url, { signal, headers: authHeaders(storedSession()) });
   } catch (cause) {
     if (signal?.aborted) throw cause;
     throw new ApiError(`Could not reach the API at ${API_BASE_URL}. Is the backend running?`);

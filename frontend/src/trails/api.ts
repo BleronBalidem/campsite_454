@@ -6,6 +6,7 @@ import type { FeatureCollection, LineString, MultiLineString } from "geojson";
 import type { CandidateSearch } from "./candidates";
 import type { Connection } from "./connections";
 import { API_BASE_URL, type Bbox } from "../api";
+import { authHeaders, storedSession } from "../auth";
 
 export interface RouteSummary {
   osm_id: number;
@@ -113,7 +114,8 @@ export class RouteApiError extends Error {}
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(url, { signal });
+    // Signed in, campsites along a route are scored with the user's weights (TM05-46).
+    response = await fetch(url, { signal, headers: authHeaders(storedSession()) });
   } catch (cause) {
     if (signal?.aborted) throw cause;
     throw new RouteApiError(`Could not reach the API at ${API_BASE_URL}.`);
