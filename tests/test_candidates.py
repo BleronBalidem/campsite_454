@@ -26,6 +26,7 @@ from rest_framework.test import APIClient
 
 from analysis.analyses import elevation
 from analysis.analyses.elevation import stitch
+from analysis.base import canonical_geom
 from geodata.models import METRIC_SRID, PublicLand, Trail, TrailRoute, WaterFeature
 from planning import candidates as search
 from planning.candidates import LABEL, ROAD_NOTE, config, spread
@@ -151,8 +152,11 @@ def test_candidates_are_found_spread_out_and_capped(route):
     assert counts["sampled"] >= counts["passed"] >= counts["scored"] >= len(found)
     # The flattest survivor at each station is scored: one per 200 m station here. Count
     # the stations on the same stitched line the search used: after the round trip through
-    # EPSG:4326 its length is a hair either side of 4,000 m, so 20 or 21 stations.
-    line_m, _ = stitch(route.geom)
+    # EPSG:4326 its length is a hair either side of 4,000 m, so 20 or 21 stations. The
+    # search runs on the analysis cache's canonical geometry (6 decimal places, ~0.1 m),
+    # so count on that too: the unrounded line can land on the other side of 4,000 m
+    # (it did with GDAL 3.8 / GEOS 3.14 on the ubuntu-latest runner).
+    line_m, _ = stitch(canonical_geom(route.geom))
     stations = {s["station_along_m"] for s in search.sample_points(line_m, 500, config())}
     assert counts["scored"] == len(stations)
 
